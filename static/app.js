@@ -15,6 +15,21 @@ const sentimentTone = {
 };
 let toastTimer;
 
+const positiveWords = new Set(`amazing awesome beautiful benefit beneficial best better brilliant cool easy effective excellent exciting fair fantastic good great helpful hope improve improved improvement incredible innovative like love lovely nice opportunity positive powerful productive progress recommend safe succeed useful valuable wonderful wow yes bermanfaat bagus baik keren hebat mantap membantu mudah memudahkan positif aman suka senang setuju menarik berguna peluang`.split(/\s+/));
+const negativeWords = new Set(`abuse alarming awful bad biased broke broken harmful harm hate horrible inaccurate issue lie lies lying misleading misinformation mistake dangerous danger wrong fail failed failure fake fear fearful flawed fraud frustrating frustratingly glitch hate harmful harm insecure issue scam scary stolen theft threat threaten terrible terrible unfair unsafe useless worry worried worries risk risks privacy exploit exploitative replace replacing replacement unemployment layoff layoffs steal steals stole stolen leak leaks leaked bahaya berbahaya buruk takut khawatir ancaman mengancam merugikan rugi negatif salah bohong palsu penipuan tipu curi dicuri kebocoran ancam rusak merusak gagal masalah susah sulit jelek buruknya kriminal hoaks kekeringan krisis kecanduan ketergantungan menakutkan seram`.split(/\s+/));
+const negators = new Set(`not no never neither nor hardly isn't wasn't don't doesn't didn't can't cannot won't wouldn't shouldn't without tidak bukan belum jangan nggak enggak gak ga kurang`.split(/\s+/));
+const intensifiers = new Set(`very really extremely so too sangat banget amat benar-benar terlalu`.split(/\s+/));
+const topicRules = [
+  ["Pekerjaan", [/\bjobs?\b/i, /\bwork(?:er|ers|force)?\b/i, /\bemploy(?:ment|ee|ees)?\b/i, /\bcareer\b/i, /\blayoffs?\b/i, /\bunemploy\w*\b/i, /\breplac\w*\b/i, /\bpekerja(?:an)?\b/i, /\bkerja\b/i, /\bpengangguran\b/i, /\bphk\b/i, /\blapangan kerja\b/i, /\bgaji\b/i]],
+  ["Privasi dan keamanan data", [/\bprivacy\b/i, /\bprivasi\b/i, /\bsurveillance\b/i, /\bdata breach\b/i, /\bdata leak\b/i, /\bdata theft\b/i, /\bpersonal data\b/i, /\bkeamanan data\b/i, /\bprivasi data\b/i, /\bpengawasan\b/i, /\bdata pribadi\b/i]],
+  ["Deepfake dan misinformasi", [/\bdeepfakes?\b/i, /\bmisinformation\b/i, /\bdisinformation\b/i, /\bfake news\b/i, /\bhoax\b/i, /\bscams?\b/i, /\bfraud\b/i, /\bpenipuan\b/i, /\bpalsu\b/i, /\bberita bohong\b/i, /\bnipu\b/i]],
+  ["Pendidikan", [/\bschools?\b/i, /\beducation(?:al)?\b/i, /\bstudents?\b/i, /\bteachers?\b/i, /\bplagiar\w*\b/i, /\bcheating\b/i, /\blearning\b/i, /\bpendidikan\b/i, /\bsekolah\b/i, /\bsiswa\b/i, /\bmahasiswa\b/i, /\bguru\b/i, /\bbelajar\b/i, /\bujian\b/i, /\btugas\b/i]],
+  ["Hak cipta dan kreator", [/\bcopyright\b/i, /\bintellectual property\b/i, /\bartists?\b/i, /\billustrators?\b/i, /\bcreators?\b/i, /\bartwork\b/i, /\bai art\b/i, /\bhak cipta\b/i, /\bseniman\b/i, /\bkreator\b/i, /\bpencipta\b/i]],
+  ["Lingkungan dan sumber daya", [/\bdata cent(?:er|re)s?\b/i, /\bdatacent(?:er|re)s?\b/i, /\bwater\b/i, /\benergy\b/i, /\belectricity\b/i, /\bcooling\b/i, /\bclimate\b/i, /\benvironment\w*\b/i, /\bcarbon\b/i, /\bpollution\b/i, /\bair\b/i, /\benergi\b/i, /\blistrik\b/i, /\bpusat data\b/i, /\bair bersih\b/i, /\bair tanah\b/i, /\bkekeringan\b/i, /\blingkungan\b/i, /\bpendingin\b/i]],
+  ["Risiko sosial dan etika", [/\bexistential\b/i, /\bextinction\b/i, /\bethics?\b/i, /\bethical\b/i, /\bthreat\b/i, /\bdanger(?:ous)?\b/i, /\baddiction\b/i, /\bdependency\b/i, /\bketergantungan\b/i, /\bkecanduan\b/i, /\bancaman\b/i, /\bbahaya\b/i, /\bdampak sosial\b/i, /\bmasa depan\b/i, /\bkemanusiaan\b/i]],
+  ["Manfaat dan produktivitas", [/\bbenefit\w*\b/i, /\bhelpful\b/i, /\buseful\b/i, /\bproductiv\w*\b/i, /\befficient\w*\b/i, /\bopportunit\w*\b/i, /\binnovation\b/i, /\bbermanfaat\b/i, /\bmanfaat\b/i, /\bmembantu\b/i, /\bmemudahkan\b/i, /\bproduktivitas\b/i, /\befisien\b/i, /\bpeluang\b/i, /\binovasi\b/i]],
+];
+
 function escapeText(value) {
   return String(value ?? "");
 }
@@ -29,6 +44,50 @@ function showToast(message) {
   toast.classList.add("visible");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove("visible"), 2800);
+}
+
+function analyzeLocally(input) {
+  const text = input
+    .replace(/\[([^\]]+)\]\((?:https?:\/\/)?[^)]+\)/gi, "$1")
+    .replace(/https?:\/\/\S+|www\.\S+/gi, " ")
+    .replace(/(?<!\w)@\w+/g, " ")
+    .replace(/#(\w+)/g, "$1")
+    .replace(/[\u{10000}-\u{10FFFF}\u2600-\u26FF\u2700-\u27BF\u2B00-\u2BFF\u200D\uFE0F]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text) throw new Error("Masukkan teks yang ingin dianalisis.");
+  if (text.length > 4000) throw new Error("Teks maksimal 4.000 karakter.");
+
+  const tokens = text.match(/[a-zA-Z]+(?:'[a-zA-Z]+)?/g)?.map((word) => word.toLowerCase()) || [];
+  let score = 0;
+  let negationWindow = 0;
+  let intensity = 1;
+  for (const token of tokens) {
+    if (negators.has(token)) {
+      negationWindow = 3;
+      continue;
+    }
+    if (intensifiers.has(token)) {
+      intensity = 1.5;
+      continue;
+    }
+    const value = positiveWords.has(token) ? 1 : negativeWords.has(token) ? -1 : 0;
+    if (value) {
+      score += value * intensity * (negationWindow ? -1 : 1);
+      intensity = 1;
+    }
+    if (negationWindow) negationWindow -= 1;
+  }
+  const sentiment = score > 0 ? "Positif" : score < 0 ? "Negatif" : "Netral";
+  const topics = topicRules
+    .filter(([, patterns]) => patterns.some((pattern) => pattern.test(text)))
+    .map(([label]) => label);
+  return {
+    clean_text: text,
+    sentiment,
+    sentiment_score: score,
+    topics: topics.length ? topics : ["Lainnya"],
+  };
 }
 
 function fillFilters() {
@@ -145,7 +204,7 @@ function renderPlatformBars(rows) {
     fragment.append(row);
   }
   $("#platform-bars").replaceChildren(fragment);
-  if (!fragment.childNodes.length) {
+  if (!$("#platform-bars").childNodes.length) {
     $("#platform-bars").textContent = "Tidak ada data untuk filter ini.";
   }
 }
@@ -280,13 +339,7 @@ async function analyzeText(event) {
   message.textContent = "Sedang menganalisis…";
   result.classList.remove("visible");
   try {
-    const response = await fetch("/api/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: $("#analyzer-text").value }),
-    });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || "Analisis gagal.");
+    const payload = analyzeLocally($("#analyzer-text").value);
     result.replaceChildren();
     const sentiment = document.createElement("div");
     const strong = document.createElement("strong");
@@ -311,7 +364,7 @@ async function analyzeText(event) {
 
 async function startApp() {
   try {
-    const response = await fetch("/api/data");
+    const response = await fetch("data.json");
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || "Data tidak bisa dimuat.");
     state.rows = payload.rows;

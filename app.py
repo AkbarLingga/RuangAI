@@ -27,6 +27,7 @@ def index():
 
 
 @app.get("/api/data")
+@app.get("/data.json")
 def api_data():
     try:
         data = _load_data()

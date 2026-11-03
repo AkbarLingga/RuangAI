@@ -16,6 +16,24 @@ python app.py
 
 Buka `http://127.0.0.1:5000` di browser.
 
+## Publikasi GitHub Pages
+
+Workflow `.github/workflows/pages.yml` memproses data dan menerbitkan versi
+statis website secara otomatis saat perubahan di-push ke branch `main` atau
+`master`. Untuk mengaktifkannya di repository GitHub:
+
+1. Buka **Settings → Pages**.
+2. Pada **Build and deployment → Source**, pilih **GitHub Actions**.
+3. Pastikan file workflow dan file CSV sumber sudah ikut di-push.
+4. Buka tab **Actions**, tunggu workflow **Deploy GitHub Pages** selesai.
+5. URL website akan tersedia di **Settings → Pages**. Untuk repository ini,
+   alamatnya biasanya `https://akbarlingga.github.io/RuangAI/`.
+
+GitHub Pages hanya melayani file statis. Workflow membangun halaman, CSS,
+JavaScript, dan data JSON statis; filter dan analisis teks berjalan di browser
+tanpa Flask. Untuk membangun versi statis secara lokal, jalankan
+`python preprocess.py` lalu `python build_static.py`; hasilnya ada di `_site`.
+
 ## Proses data
 
 `preprocess.py` membaca tiga sumber mentah yang tersedia di folder project:
