@@ -1,6 +1,12 @@
 import unittest
 
-from sentiment import analyze_sentiment, clean_text, identify_topics, is_noise
+from sentiment import (
+    analyze_sentiment,
+    clean_text,
+    identify_topics,
+    is_noise,
+    normalized_polarity,
+)
 from preprocess import build_dataset
 
 
@@ -17,6 +23,11 @@ class SentimentPipelineTests(unittest.TestCase):
 
     def test_neutral_text_has_zero_score(self):
         self.assertEqual(analyze_sentiment("AI is used in a data center"), ("Netral", 0.0))
+
+    def test_normalized_polarity_is_bounded_and_neutral_is_zero(self):
+        self.assertEqual(normalized_polarity("not good"), -1.0)
+        self.assertEqual(normalized_polarity("very good"), 1.0)
+        self.assertEqual(normalized_polarity("AI is used in a data center"), 0.0)
 
     def test_multiple_topics_can_be_detected(self):
         topics = identify_topics("AI jobs and education are changing")
@@ -36,6 +47,7 @@ class SentimentPipelineTests(unittest.TestCase):
         self.assertEqual(set(dataset["platform"]), {"X", "Reddit", "YouTube"})
         self.assertEqual(len(dataset), sum(source["kept"] for source in stats.values()))
         self.assertFalse(dataset["clean_text"].str.strip().eq("").any())
+        self.assertTrue(dataset["polarity"].between(-1, 1).all())
 
 
 if __name__ == "__main__":

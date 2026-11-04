@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
 from flask import Flask, jsonify, render_template, request
 
 from preprocess import OUTPUT_FILE
-from sentiment import analyze_sentiment, clean_text, identify_topics
+from sentiment import analyze_sentiment, clean_text, identify_topics, normalized_polarity
+from sentiment_model import export_browser_model, fit_sentiment_model, predict_probabilities
 
 
 ROOT = Path(__file__).resolve().parent
@@ -19,6 +21,16 @@ def _load_data() -> pd.DataFrame:
             "Dataset olahan belum ditemukan. Jalankan `python preprocess.py` terlebih dahulu."
         )
     return pd.read_csv(OUTPUT_FILE, keep_default_na=False)
+
+
+@lru_cache(maxsize=1)
+def _get_sentiment_model():
+    data = _load_data()
+    required = {"clean_text", "sentiment"}
+    missing = sorted(required - set(data.columns))
+    if missing:
+        raise ValueError(f"Kolom dataset untuk model hilang: {', '.join(missing)}")
+    return fit_sentiment_model(data["clean_text"].astype(str), data["sentiment"].astype(str))
 
 
 @app.get("/")
@@ -39,15 +51,21 @@ def api_data():
 
     columns = [
         "platform", "source_id", "date", "source_context", "engagement",
-        "clean_text", "sentiment", "sentiment_score", "topic",
+        "clean_text", "sentiment", "sentiment_score", "polarity", "topic",
     ]
     missing = [column for column in columns if column not in data.columns]
     if missing:
         app.logger.error("Kolom dataset olahan hilang: %s", ", ".join(missing))
         return jsonify({"error": f"Kolom dataset tidak lengkap: {', '.join(missing)}"}), 500
 
+    try:
+        model = export_browser_model(_get_sentiment_model())
+    except (OSError, ValueError, KeyError) as error:
+        app.logger.exception("Tidak dapat melatih model sentimen")
+        return jsonify({"error": f"Gagal menyiapkan model sentimen: {error}"}), 500
+
     rows = data[columns].to_dict(orient="records")
-    return jsonify({"rows": rows, "total": len(rows)})
+    return jsonify({"rows": rows, "total": len(rows), "sentiment_model": model})
 
 
 @app.post("/api/analyze")
@@ -63,12 +81,23 @@ def api_analyze():
         return jsonify({"error": "Masukkan teks yang ingin dianalisis."}), 400
 
     sentiment, score = analyze_sentiment(text)
+    try:
+        model = _get_sentiment_model()
+    except (OSError, ValueError, KeyError) as error:
+        app.logger.exception("Tidak dapat melatih model sentimen")
+        return jsonify({"error": f"Gagal menyiapkan model sentimen: {error}"}), 500
+    probabilities = predict_probabilities(model, text)
+    predicted_sentiment = max(probabilities, key=probabilities.get)
     return jsonify(
         {
             "clean_text": text,
             "sentiment": sentiment,
             "sentiment_score": score,
+            "polarity": normalized_polarity(text, score),
             "topics": identify_topics(text).split("; "),
+            "model_sentiment": predicted_sentiment,
+            "model_probabilities": probabilities,
+            "model_training_labels": "Label leksikon; belum divalidasi manual",
         }
     )
 

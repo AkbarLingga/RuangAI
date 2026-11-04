@@ -100,6 +100,26 @@ h1 { margin: 13px 0 8px; font: 700 31px/1.22 "Manrope", sans-serif; letter-spaci
 .percent-neutral { color: #8774ab; }
 .percent-negative { color: #c66d67; }
 .metric-mini { color: #98a89c; font-size: 8px; letter-spacing: .7px; font-weight: 700; }
+.trend-panel { margin-top: 14px; }
+.trend-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-top: 14px; }
+.trend-chart-card { min-width: 0; padding: 11px 10px 8px; border: 1px solid #edf0ed; border-radius: 6px; background: #fff; }
+.trend-chart-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #526157; font-size: 10px; font-weight: 600; }
+.trend-chart-count { color: #929d95; font-size: 8px; font-weight: 400; white-space: nowrap; }
+.trend-unavailable { min-height: 100px; display: grid; place-items: center; margin: 10px 0 0; padding: 14px; border-radius: 5px; color: #929d95; background: #f8faf8; font-size: 9px; line-height: 1.6; text-align: center; }
+.sentiment-trend { width: 100%; margin-top: 7px; }
+.sentiment-trend svg { width: 100%; height: auto; overflow: visible; }
+.trend-grid-line { stroke: #edf0ed; stroke-width: 1; }
+.trend-axis-label { fill: #929d95; font: 10px "DM Sans", sans-serif; }
+.trend-series { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.trend-series-positive { stroke: #74ac86; }
+.trend-series-neutral { stroke: #b6a7d4; }
+.trend-series-negative { stroke: #e28881; }
+.trend-point { stroke: #fff; stroke-width: 2; }
+.trend-point-positive { fill: #74ac86; }
+.trend-point-neutral { fill: #b6a7d4; }
+.trend-point-negative { fill: #e28881; }
+.trend-legend { margin-top: 2px; }
+.trend-note { margin: 11px 0 0; color: #929d95; font-size: 9px; line-height: 1.5; }
 .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; margin-top: 14px; }
 .panel { padding: 17px 18px; }
 .panel-heading { display: flex; align-items: start; justify-content: space-between; gap: 14px; }
@@ -132,6 +152,21 @@ h2 { margin: 5px 0 0; color: #28362e; font: 700 14px/1.35 "Manrope", sans-serif;
 .stack-negative { background: #e28881; }
 .platform-total { color: #8d9990; text-align: right; font-size: 9px; }
 .platform-footnote { margin-top: 14px; color: #9ca69e; font-size: 9px; }
+.polarity-panel { margin-top: 14px; }
+.polarity-summary { display: grid; grid-template-columns: minmax(160px, .55fr) 1.45fr; gap: 18px; margin-top: 17px; }
+.polarity-average { display: grid; align-content: center; gap: 7px; padding: 14px; border-radius: 6px; background: #f7faf7; }
+.polarity-average strong { color: #315d49; font: 700 25px/1 "Manrope", sans-serif; letter-spacing: -.8px; }
+.polarity-average > span:last-child, .polarity-note { color: #929d95; font-size: 9px; line-height: 1.5; }
+.polarity-bars { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; }
+.polarity-bin { min-width: 0; display: grid; grid-template-rows: auto 58px auto; align-items: end; gap: 5px; text-align: center; }
+.polarity-bin-value { color: #6e7c72; font-size: 9px; font-weight: 600; }
+.polarity-track { height: 100%; display: flex; align-items: end; overflow: hidden; border-radius: 5px; background: #f0f3f0; }
+.polarity-fill { width: 100%; min-height: 2px; border-radius: 5px 5px 0 0; transition: height .25s ease; }
+.polarity-negative { background: #e28881; }
+.polarity-neutral { background: #b6a7d4; }
+.polarity-positive { background: #74ac86; }
+.polarity-bin-label { color: #929d95; font-size: 8px; line-height: 1.35; }
+.polarity-note { margin: 12px 0 0; }
 .topics-panel { margin-top: 14px; }
 .panel-description { margin: 5px 0 0; color: #929d95; font-size: 10px; }
 .topic-count { color: #63816d; background: #f1f7f2; border-color: #e8f0e9; }
@@ -175,6 +210,17 @@ tbody tr:last-child td { border-bottom: 0; }
 .analyzer-result { display: none; margin-top: 10px; padding: 10px; border: 1px solid #e6ece6; border-radius: 6px; background: #fff; color: #59665d; font-size: 10px; line-height: 1.65; }
 .analyzer-result.visible { display: block; }
 .analyzer-result strong { color: #34483a; }
+.model-result { margin-top: 7px; padding-top: 7px; border-top: 1px solid #edf0ed; }
+.model-result-heading { display: flex; justify-content: space-between; gap: 10px; }
+.model-result-heading span:last-child { color: #718779; font-weight: 600; }
+.model-probabilities { display: grid; gap: 5px; margin-top: 7px; }
+.model-probability-row { display: grid; grid-template-columns: 58px 1fr 38px; align-items: center; gap: 7px; color: #78857c; font-size: 9px; }
+.probability-track { height: 5px; overflow: hidden; border-radius: 5px; background: #eff2ef; }
+.probability-fill { height: 100%; border-radius: inherit; }
+.probability-positif { background: #74ac86; }
+.probability-netral { background: #b6a7d4; }
+.probability-negatif { background: #e28881; }
+.model-caveat { margin-top: 7px; color: #929d95; font-size: 8px; line-height: 1.5; }
 .footer { display: flex; justify-content: space-between; gap: 15px; padding: 22px 0 28px; color: #a0aaa2; font-size: 8px; letter-spacing: .25px; }
 .footer span:first-child { font-weight: 700; letter-spacing: .8px; }
 .footer i { padding: 0 4px; color: #77a386; font-style: normal; }
@@ -245,6 +291,16 @@ tbody tr:last-child td { border-bottom: 0; }
   .sentiment-stat-top, .sentiment-stat-bottom { font-size: 8px; }
   .sentiment-stat-value { font-size: 14px; }
   .legend { gap: 10px; font-size: 8px; }
+  .trend-charts { grid-template-columns: 1fr; gap: 8px; margin-top: 12px; }
+  .sentiment-trend { max-width: 520px; margin: 7px auto 0; }
+  .trend-axis-label { font-size: 9px; }
+  .trend-note { font-size: 8px; }
+  .polarity-summary { grid-template-columns: 1fr; gap: 12px; }
+  .polarity-average { grid-template-columns: 1fr auto; align-items: center; gap: 5px 10px; padding: 10px; }
+  .polarity-average .metric-label, .polarity-average > span:last-child { grid-column: 1; }
+  .polarity-average strong { grid-column: 2; grid-row: 1 / span 2; }
+  .polarity-bars { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 10px; }
+  .polarity-bin { grid-template-rows: auto 42px auto; }
   .topic-bars { grid-template-columns: 1fr; row-gap: 12px; margin-top: 16px; }
   .panel-badge { font-size: 8px; }
   .comments-heading { align-items: start; }

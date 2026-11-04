@@ -1,6 +1,7 @@
 const state = {
   rows: [],
   filtered: [],
+  sentimentModel: null,
   page: 1,
   pageSize: 8,
 };
@@ -13,6 +14,12 @@ const sentimentTone = {
   Netral: "netral",
   Negatif: "negatif",
 };
+const trendSeries = [
+  { sentiment: "Positif", className: "positive" },
+  { sentiment: "Netral", className: "neutral" },
+  { sentiment: "Negatif", className: "negative" },
+];
+const svgNamespace = "http://www.w3.org/2000/svg";
 let toastTimer;
 
 const positiveWords = new Set(`amazing awesome beautiful benefit beneficial best better brilliant cool easy effective excellent exciting fair fantastic good great helpful hope improve improved improvement incredible innovative like love lovely nice opportunity positive powerful productive progress recommend safe succeed useful valuable wonderful wow yes bermanfaat bagus baik keren hebat mantap membantu mudah memudahkan positif aman suka senang setuju menarik berguna peluang`.split(/\s+/));
@@ -79,6 +86,9 @@ function analyzeLocally(input) {
     if (negationWindow) negationWindow -= 1;
   }
   const sentiment = score > 0 ? "Positif" : score < 0 ? "Negatif" : "Netral";
+  const sentimentWordCount = tokens.filter((token) => (
+    positiveWords.has(token) || negativeWords.has(token)
+  )).length;
   const topics = topicRules
     .filter(([, patterns]) => patterns.some((pattern) => pattern.test(text)))
     .map(([label]) => label);
@@ -86,8 +96,51 @@ function analyzeLocally(input) {
     clean_text: text,
     sentiment,
     sentiment_score: score,
+    polarity: sentimentWordCount
+      ? Math.max(-1, Math.min(1, score / sentimentWordCount))
+      : 0,
     topics: topics.length ? topics : ["Lainnya"],
   };
+}
+
+function predictWithModel(text) {
+  const model = state.sentimentModel;
+  if (!model) throw new Error("Model sentimen belum tersedia.");
+  const normalized = text.normalize("NFKD").replace(/\p{M}/gu, "").toLocaleLowerCase("en");
+  const tokens = normalized.match(/[\p{L}\p{N}_]{2,}/gu) || [];
+  const terms = [...tokens, ...tokens.slice(1).map((token, index) => `${tokens[index]} ${token}`)];
+  const counts = new Map();
+  for (const term of terms) {
+    if (Object.prototype.hasOwnProperty.call(model.vocabulary, term)) {
+      counts.set(term, (counts.get(term) || 0) + 1);
+    }
+  }
+
+  const features = [];
+  let norm = 0;
+  for (const [term, count] of counts) {
+    const index = model.vocabulary[term];
+    const value = (1 + Math.log(count)) * model.idf[index];
+    features.push([index, value]);
+    norm += value * value;
+  }
+  norm = Math.sqrt(norm);
+  const logits = model.classes.map((_, classIndex) => {
+    let value = model.intercepts[classIndex];
+    if (norm) {
+      for (const [featureIndex, weight] of features) {
+        value += model.coefficients[classIndex][featureIndex] * (weight / norm);
+      }
+    }
+    return value;
+  });
+  const maxLogit = Math.max(...logits);
+  const exponentials = logits.map((value) => Math.exp(value - maxLogit));
+  const total = exponentials.reduce((sum, value) => sum + value, 0);
+  return Object.fromEntries(model.classes.map((label, index) => [
+    label,
+    exponentials[index] / total,
+  ]));
 }
 
 function fillFilters() {
@@ -141,6 +194,242 @@ function renderMetrics(rows) {
   renderTopics(rows);
 }
 
+function renderPolarity(rows) {
+  const scores = rows.map((row) => Number(row.polarity)).filter(Number.isFinite);
+  const average = scores.length
+    ? scores.reduce((sum, value) => sum + value, 0) / scores.length
+    : 0;
+  $("#polarity-count").textContent = `${numberFormat.format(scores.length)} komentar`;
+  $("#polarity-average").textContent = `${average > 0 ? "+" : ""}${average.toFixed(3)}`;
+
+  const bins = [
+    { label: "≤ −0,5", tone: "negative", count: 0 },
+    { label: "−0,5–0", tone: "negative", count: 0 },
+    { label: "0", tone: "neutral", count: 0 },
+    { label: "0–0,5", tone: "positive", count: 0 },
+    { label: "≥ 0,5", tone: "positive", count: 0 },
+  ];
+  for (const score of scores) {
+    if (score <= -0.5) bins[0].count += 1;
+    else if (score < 0) bins[1].count += 1;
+    else if (score === 0) bins[2].count += 1;
+    else if (score < 0.5) bins[3].count += 1;
+    else bins[4].count += 1;
+  }
+  const highest = Math.max(1, ...bins.map((bin) => bin.count));
+  const fragment = document.createDocumentFragment();
+  for (const bin of bins) {
+    const item = document.createElement("div");
+    item.className = "polarity-bin";
+    const value = document.createElement("span");
+    value.className = "polarity-bin-value";
+    value.textContent = numberFormat.format(bin.count);
+    const track = document.createElement("div");
+    track.className = "polarity-track";
+    const fill = document.createElement("div");
+    fill.className = `polarity-fill polarity-${bin.tone}`;
+    fill.style.height = `${(bin.count / highest) * 100}%`;
+    track.append(fill);
+    const label = document.createElement("span");
+    label.className = "polarity-bin-label";
+    label.textContent = bin.label;
+    item.append(value, track, label);
+    fragment.append(item);
+  }
+  $("#polarity-bars").replaceChildren(fragment);
+}
+
+function renderSentimentTrend(rows) {
+  const container = $("#sentiment-trend");
+  const platformMonthly = new Map();
+  for (const row of rows) {
+    if (!row.platform) continue;
+    const date = String(row.date || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    const timestamp = Date.parse(`${date}T00:00:00Z`);
+    if (!Number.isFinite(timestamp)) continue;
+
+    const month = date.slice(0, 7);
+    if (!platformMonthly.has(row.platform)) {
+      platformMonthly.set(row.platform, new Map());
+    }
+    const monthly = platformMonthly.get(row.platform);
+    if (!monthly.has(month)) {
+      monthly.set(month, {
+        timestamp: Date.parse(`${month}-01T00:00:00Z`),
+        total: 0,
+        counts: Object.fromEntries(sentimentOrder.map((label) => [label, 0])),
+      });
+    }
+    const point = monthly.get(month);
+    point.total += 1;
+    if (Object.prototype.hasOwnProperty.call(point.counts, row.sentiment)) {
+      point.counts[row.sentiment] += 1;
+    }
+  }
+
+  const platformOrder = ["X", "Reddit", "YouTube"];
+  const platformPoints = platformOrder
+    .filter((platform) => platformMonthly.has(platform))
+    .map((platform) => ({
+      platform,
+      points: [...platformMonthly.get(platform).entries()]
+        .map(([month, point]) => ({ month, ...point }))
+        .sort((left, right) => left.timestamp - right.timestamp),
+    }));
+  for (const [platform, monthly] of platformMonthly) {
+    if (!platformOrder.includes(platform)) {
+      platformPoints.push({
+        platform,
+        points: [...monthly.entries()]
+          .map(([month, point]) => ({ month, ...point }))
+          .sort((left, right) => left.timestamp - right.timestamp),
+      });
+    }
+  }
+  if (!platformPoints.length) {
+    container.textContent = "Tidak ada data tanggal untuk filter ini.";
+    return;
+  }
+
+  const width = 800;
+  const height = 250;
+  const margin = { top: 16, right: 18, bottom: 42, left: 44 };
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = height - margin.top - margin.bottom;
+  const allPoints = platformPoints.flatMap(({ points }) => points);
+  const firstTimestamp = Math.min(...allPoints.map((point) => point.timestamp));
+  const lastTimestamp = Math.max(...allPoints.map((point) => point.timestamp));
+  const x = (timestamp) => (
+    margin.left + (lastTimestamp === firstTimestamp
+      ? plotWidth / 2
+      : ((timestamp - firstTimestamp) / (lastTimestamp - firstTimestamp)) * plotWidth)
+  );
+  const y = (percentage) => margin.top + (1 - percentage / 100) * plotHeight;
+  const dateFormatter = new Intl.DateTimeFormat("id-ID", {
+    month: "short",
+    year: "2-digit",
+    timeZone: "UTC",
+  });
+  const fragment = document.createDocumentFragment();
+  for (const { platform, points } of platformPoints) {
+    const card = document.createElement("article");
+    card.className = "trend-chart-card";
+    const heading = document.createElement("div");
+    heading.className = "trend-chart-heading";
+    const title = document.createElement("span");
+    title.textContent = platform;
+    const total = points.reduce((sum, point) => sum + point.total, 0);
+    const count = document.createElement("span");
+    count.className = "trend-chart-count";
+    count.textContent = `${numberFormat.format(total)} komentar`;
+    heading.append(title, count);
+
+    if (points.length < 2) {
+      const notice = document.createElement("p");
+      notice.className = "trend-unavailable";
+      const month = points[0]?.month;
+      notice.textContent = month
+        ? `Belum cukup data untuk tren. Data hanya tersedia pada ${dateFormatter.format(new Date(points[0].timestamp))}.`
+        : "Belum cukup data untuk menunjukkan tren bulanan.";
+      card.append(heading, notice);
+      fragment.append(card);
+      continue;
+    }
+
+    const chart = document.createElement("div");
+    chart.className = "sentiment-trend";
+    chart.setAttribute("role", "img");
+    chart.setAttribute("aria-label", `Tren sentimen bulanan platform ${platform}`);
+    const svg = document.createElementNS(svgNamespace, "svg");
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    svg.setAttribute("aria-hidden", "true");
+
+    for (const percentage of [0, 25, 50, 75, 100]) {
+      const grid = document.createElementNS(svgNamespace, "line");
+      grid.setAttribute("x1", String(margin.left));
+      grid.setAttribute("x2", String(width - margin.right));
+      grid.setAttribute("y1", String(y(percentage)));
+      grid.setAttribute("y2", String(y(percentage)));
+      grid.setAttribute("class", "trend-grid-line");
+      svg.append(grid);
+
+      const label = document.createElementNS(svgNamespace, "text");
+      label.setAttribute("x", String(margin.left - 9));
+      label.setAttribute("y", String(y(percentage) + 3));
+      label.setAttribute("text-anchor", "end");
+      label.setAttribute("class", "trend-axis-label");
+      label.textContent = `${percentage}%`;
+      svg.append(label);
+    }
+
+    const labelIndexes = new Set([0, points.length - 1]);
+    const labelCount = Math.min(5, points.length);
+    for (let index = 0; index < labelCount; index += 1) {
+      labelIndexes.add(Math.round(index * (points.length - 1) / (labelCount - 1 || 1)));
+    }
+    for (const index of [...labelIndexes].sort((left, right) => left - right)) {
+      const point = points[index];
+      const label = document.createElementNS(svgNamespace, "text");
+      label.setAttribute("x", String(x(point.timestamp)));
+      label.setAttribute("y", String(height - 13));
+      label.setAttribute("text-anchor", index === 0
+        ? "start"
+        : index === points.length - 1 ? "end" : "middle");
+      label.setAttribute("class", "trend-axis-label");
+      label.textContent = dateFormatter.format(new Date(point.timestamp));
+      svg.append(label);
+    }
+
+    for (const series of trendSeries) {
+      const coordinates = points.map((point) => ({
+        x: x(point.timestamp),
+        y: y(point.total ? point.counts[series.sentiment] / point.total * 100 : 0),
+        percentage: point.total ? point.counts[series.sentiment] / point.total * 100 : 0,
+        count: point.counts[series.sentiment],
+        total: point.total,
+        month: point.month,
+      }));
+      for (let index = 1; index < coordinates.length; index += 1) {
+        const previous = coordinates[index - 1];
+        const current = coordinates[index];
+        const previousMonth = new Date(points[index - 1].timestamp);
+        const currentMonth = new Date(points[index].timestamp);
+        const monthGap = (
+          (currentMonth.getUTCFullYear() - previousMonth.getUTCFullYear()) * 12
+          + currentMonth.getUTCMonth() - previousMonth.getUTCMonth()
+        );
+        if (monthGap !== 1) continue;
+        const line = document.createElementNS(svgNamespace, "line");
+        line.setAttribute("x1", String(previous.x));
+        line.setAttribute("y1", String(previous.y));
+        line.setAttribute("x2", String(current.x));
+        line.setAttribute("y2", String(current.y));
+        line.setAttribute("class", `trend-series trend-series-${series.className}`);
+        svg.append(line);
+      }
+
+      for (const point of coordinates) {
+        const circle = document.createElementNS(svgNamespace, "circle");
+        circle.setAttribute("cx", String(point.x));
+        circle.setAttribute("cy", String(point.y));
+        circle.setAttribute("r", "4");
+        circle.setAttribute("class", `trend-point trend-point-${series.className}`);
+        const title = document.createElementNS(svgNamespace, "title");
+        title.textContent = `${point.month}: ${series.sentiment} ${point.percentage.toFixed(1)}% (${point.count}/${point.total} komentar)`;
+        circle.append(title);
+        svg.append(circle);
+      }
+    }
+
+    chart.append(svg);
+    card.append(heading, chart);
+    fragment.append(card);
+  }
+  container.replaceChildren(fragment);
+}
+
 function renderSentimentBars(counts, total) {
   const labels = [
     ["Positif", "↗"],
@@ -185,7 +474,7 @@ function renderPlatformBars(rows) {
     mark.textContent = labels[platform];
     name.append(mark, document.createTextNode(platform));
     const bar = document.createElement("div");
-    bar.className = "stacked-bar";
+    bar.className = "stacked-bar platform-comparison-bar";
     for (const [label, className] of [
       ["Positif", "stack-positive"],
       ["Netral", "stack-neutral"],
@@ -194,7 +483,8 @@ function renderPlatformBars(rows) {
       const segment = document.createElement("span");
       segment.className = `stacked-segment ${className}`;
       segment.style.width = `${(count[label] / group.length) * 100}%`;
-      segment.title = `${label}: ${count[label]}`;
+      segment.title = `${label}: ${count[label]} komentar (${((count[label] / group.length) * 100).toFixed(1)}%)`;
+      segment.setAttribute("aria-label", segment.title);
       bar.append(segment);
     }
     const total = document.createElement("span");
@@ -308,13 +598,14 @@ function refresh() {
   state.filtered = getFilteredRows();
   state.page = 1;
   renderMetrics(state.filtered);
+  renderSentimentTrend(state.filtered);
   renderComments(state.filtered);
 }
 
 function exportCsv() {
   const columns = [
     "platform", "source_id", "date", "source_context", "engagement",
-    "clean_text", "sentiment", "sentiment_score", "topic",
+    "clean_text", "sentiment", "sentiment_score", "polarity", "topic",
   ];
   const csvEscape = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
   const csv = [
@@ -340,11 +631,16 @@ async function analyzeText(event) {
   result.classList.remove("visible");
   try {
     const payload = analyzeLocally($("#analyzer-text").value);
+    const probabilities = predictWithModel(payload.clean_text);
+    const predictedSentiment = Object.entries(probabilities)
+      .sort((left, right) => right[1] - left[1])[0][0];
     result.replaceChildren();
     const sentiment = document.createElement("div");
     const strong = document.createElement("strong");
-    strong.textContent = `Sentimen: ${payload.sentiment}`;
-    const score = document.createTextNode(` · Skor ${payload.sentiment_score}`);
+    strong.textContent = `Sentimen leksikon: ${payload.sentiment}`;
+    const score = document.createTextNode(
+      ` · Skor ${payload.sentiment_score} · Polarity ${payload.polarity > 0 ? "+" : ""}${payload.polarity.toFixed(3)}`,
+    );
     sentiment.append(strong, score);
     const topic = document.createElement("div");
     const topicLabel = document.createElement("strong");
@@ -352,7 +648,38 @@ async function analyzeText(event) {
     topic.append(topicLabel, document.createTextNode(payload.topics.join(", ")));
     const cleaned = document.createElement("div");
     cleaned.textContent = `Teks bersih: ${payload.clean_text}`;
-    result.append(sentiment, topic, cleaned);
+    const model = document.createElement("div");
+    model.className = "model-result";
+    const modelHeading = document.createElement("div");
+    modelHeading.className = "model-result-heading";
+    const modelLabel = document.createElement("strong");
+    modelLabel.textContent = `Prediksi model: ${predictedSentiment}`;
+    const confidence = document.createElement("span");
+    confidence.textContent = `${(probabilities[predictedSentiment] * 100).toFixed(1)}%`;
+    modelHeading.append(modelLabel, confidence);
+    const probabilityRows = document.createElement("div");
+    probabilityRows.className = "model-probabilities";
+    for (const label of sentimentOrder) {
+      const row = document.createElement("div");
+      row.className = "model-probability-row";
+      const name = document.createElement("span");
+      name.textContent = label;
+      const track = document.createElement("div");
+      track.className = "probability-track";
+      const fill = document.createElement("div");
+      fill.className = `probability-fill probability-${label.toLocaleLowerCase("id")}`;
+      fill.style.width = `${probabilities[label] * 100}%`;
+      track.append(fill);
+      const percent = document.createElement("span");
+      percent.textContent = `${(probabilities[label] * 100).toFixed(1)}%`;
+      row.append(name, track, percent);
+      probabilityRows.append(row);
+    }
+    const caveat = document.createElement("p");
+    caveat.className = "model-caveat";
+    caveat.textContent = `Probabilitas ML dipelajari dari ${state.sentimentModel.training_labels}; tidak dikalibrasi atau divalidasi manual, jadi bukan ukuran akurasi.`;
+    model.append(modelHeading, probabilityRows, caveat);
+    result.append(sentiment, topic, cleaned, model);
     result.classList.add("visible");
     message.textContent = "Hasil analisis awal";
   } catch (error) {
@@ -368,6 +695,9 @@ async function startApp() {
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || "Data tidak bisa dimuat.");
     state.rows = payload.rows;
+    state.sentimentModel = payload.sentiment_model;
+    if (!state.sentimentModel) throw new Error("Model sentimen tidak tersedia.");
+    renderPolarity(state.rows);
     fillFilters();
     refresh();
   } catch (error) {

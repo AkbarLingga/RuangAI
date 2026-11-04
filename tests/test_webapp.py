@@ -12,6 +12,7 @@ class WebAppTests(unittest.TestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Komposisi sentimen", response.data)
+        self.assertIn(b"Tren sentimen bulanan", response.data)
 
     def test_data_api_returns_platform_rows(self):
         response = self.client.get("/api/data")
@@ -21,6 +22,12 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(
             {row["platform"] for row in payload["rows"]},
             {"X", "Reddit", "YouTube"},
+        )
+        self.assertTrue(all(-1 <= row["polarity"] <= 1 for row in payload["rows"]))
+        self.assertTrue(all(row["date"] for row in payload["rows"]))
+        self.assertEqual(
+            set(payload["sentiment_model"]["classes"]),
+            {"Positif", "Netral", "Negatif"},
         )
 
     def test_analyze_endpoint_labels_text(self):
@@ -33,6 +40,8 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(payload["sentiment"], "Positif")
         self.assertIn("Pekerjaan", payload["topics"])
         self.assertIn("Privasi dan keamanan data", payload["topics"])
+        self.assertAlmostEqual(sum(payload["model_probabilities"].values()), 1.0)
+        self.assertIn(payload["model_sentiment"], payload["model_probabilities"])
 
     def test_analyze_endpoint_rejects_empty_text(self):
         response = self.client.post("/api/analyze", json={"text": "  "})

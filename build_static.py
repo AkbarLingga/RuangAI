@@ -6,13 +6,14 @@ from pathlib import Path
 
 from flask import render_template
 
-from app import ROOT, _load_data, app
+from app import ROOT, _get_sentiment_model, _load_data, app
+from sentiment_model import export_browser_model
 
 
 SITE_DIR = ROOT / "_site"
 DATA_COLUMNS = [
     "platform", "source_id", "date", "source_context", "engagement",
-    "clean_text", "sentiment", "sentiment_score", "topic",
+    "clean_text", "sentiment", "sentiment_score", "polarity", "topic",
 ]
 
 
@@ -37,6 +38,7 @@ def build() -> None:
                     data[DATA_COLUMNS].to_json(orient="records", force_ascii=False)
                 ),
                 "total": len(data),
+                "sentiment_model": export_browser_model(_get_sentiment_model()),
             },
             ensure_ascii=False,
         ),

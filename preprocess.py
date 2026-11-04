@@ -5,7 +5,13 @@ import sys
 
 import pandas as pd
 
-from sentiment import analyze_sentiment, clean_text, identify_topics, is_noise
+from sentiment import (
+    analyze_sentiment,
+    clean_text,
+    identify_topics,
+    is_noise,
+    normalized_polarity,
+)
 
 
 ROOT = Path(__file__).resolve().parent
@@ -87,6 +93,7 @@ def _load_source(config: dict[str, object]) -> tuple[list[dict[str, object]], di
         assert isinstance(engagement_columns, tuple)
         engagement = sum(_number(row.get(column, 0)) for column in engagement_columns)
         sentiment, score = analyze_sentiment(text)
+        polarity = normalized_polarity(text, score)
         records.append(
             {
                 "platform": config["platform"],
@@ -98,6 +105,7 @@ def _load_source(config: dict[str, object]) -> tuple[list[dict[str, object]], di
                 "clean_text": text,
                 "sentiment": sentiment,
                 "sentiment_score": score,
+                "polarity": polarity,
                 "topic": identify_topics(text),
             }
         )
@@ -124,7 +132,7 @@ def build_dataset() -> tuple[pd.DataFrame, dict[str, dict[str, int]]]:
 
     columns = [
         "platform", "source_id", "date", "source_context", "engagement",
-        "raw_text", "clean_text", "sentiment", "sentiment_score", "topic",
+        "raw_text", "clean_text", "sentiment", "sentiment_score", "polarity", "topic",
     ]
     dataset = pd.DataFrame(all_records, columns=columns)
     return dataset, stats

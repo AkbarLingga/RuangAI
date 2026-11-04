@@ -195,6 +195,18 @@ def analyze_sentiment(text: str) -> tuple[str, float]:
     return "Netral", score
 
 
+def normalized_polarity(text: str, sentiment_score: float | None = None) -> float:
+    """Return a bounded per-comment polarity normalized by sentiment-bearing words."""
+    tokens = [token.casefold() for token in _TOKEN_RE.findall(text)]
+    matched_tokens = sum(
+        token in _POSITIVE_WORDS or token in _NEGATIVE_WORDS for token in tokens
+    )
+    if not matched_tokens:
+        return 0.0
+    score = analyze_sentiment(text)[1] if sentiment_score is None else sentiment_score
+    return max(-1.0, min(1.0, score / matched_tokens))
+
+
 def identify_topics(text: str) -> str:
     """Return all matching research topics, or 'Lainnya' when none match."""
     matches = [

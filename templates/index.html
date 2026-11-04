@@ -22,6 +22,7 @@
         <div class="side-label">RUANG KERJA</div>
         <nav class="side-nav" aria-label="Navigasi utama">
           <a class="nav-link active" href="#overview"><span class="nav-icon">◫</span> Ringkasan</a>
+          <a class="nav-link" href="#polarity"><span class="nav-icon">◒</span> Polaritas data</a>
           <a class="nav-link" href="#topics"><span class="nav-icon">◎</span> Eksplorasi topik</a>
           <a class="nav-link" href="#comments"><span class="nav-icon">▤</span> Data komentar</a>
           <a class="nav-link" href="#analyzer"><span class="nav-icon">✳</span> Coba analisis</a>
@@ -92,6 +93,16 @@
           </article>
         </section>
 
+        <section class="panel trend-panel" id="trend">
+          <div class="panel-heading">
+            <div><div class="section-kicker">PERUBAHAN DARI WAKTU KE WAKTU</div><h2>Tren sentimen bulanan per platform</h2><p class="panel-description">Setiap grafik membandingkan persentase sentimen dalam satu platform. Arahkan kursor ke titik untuk melihat jumlah komentar.</p></div>
+            <span class="panel-badge">Per platform</span>
+          </div>
+          <div id="sentiment-trend" class="trend-charts" aria-label="Grafik tren sentimen berdasarkan platform"></div>
+          <div class="legend trend-legend"><span><i class="legend-dot positive-dot"></i>Positif</span><span><i class="legend-dot neutral-dot"></i>Netral</span><span><i class="legend-dot negative-dot"></i>Negatif</span></div>
+          <p class="trend-note">Periode tanpa komentar tidak ditampilkan. Jumlah komentar per bulan dan komposisi platform berbeda; tren ini menggambarkan dataset, bukan perubahan opini seluruh masyarakat.</p>
+        </section>
+
         <section class="charts-grid">
           <article class="panel sentiment-panel">
             <div class="panel-heading"><div><div class="section-kicker">GAMBARAN UMUM</div><h2>Komposisi sentimen</h2></div><span class="panel-badge">Berdasarkan komentar</span></div>
@@ -99,10 +110,27 @@
             <div class="legend"><span><i class="legend-dot positive-dot"></i>Positif</span><span><i class="legend-dot neutral-dot"></i>Netral</span><span><i class="legend-dot negative-dot"></i>Negatif</span></div>
           </article>
           <article class="panel platform-panel">
-            <div class="panel-heading"><div><div class="section-kicker">PERBANDINGAN SUMBER</div><h2>Sentimen per platform</h2></div><span class="mini-menu">···</span></div>
+            <div class="panel-heading"><div><div class="section-kicker">PERBANDINGAN SUMBER</div><h2>Sentimen per platform</h2><p class="panel-description">Proporsi tiap sentimen dalam setiap platform.</p></div><span class="mini-menu">···</span></div>
             <div id="platform-bars" class="platform-bars"></div>
-            <div class="platform-footnote">Proporsi sentimen dalam setiap platform</div>
+            <div class="legend platform-legend"><span><i class="legend-dot positive-dot"></i>Positif</span><span><i class="legend-dot neutral-dot"></i>Netral</span><span><i class="legend-dot negative-dot"></i>Negatif</span></div>
+            <div class="platform-footnote">Persentase per platform · jumlah komentar di sisi kanan</div>
           </article>
+        </section>
+
+        <section class="panel polarity-panel" id="polarity">
+          <div class="panel-heading">
+            <div><div class="section-kicker">POLARITAS DATA BERSIH</div><h2>Seberapa kuat kecenderungan sentimennya?</h2><p class="panel-description">Distribusi skor polaritas ternormalisasi untuk seluruh komentar setelah preprocessing, tidak berubah saat filter digunakan.</p></div>
+            <span class="panel-badge" id="polarity-count">— komentar</span>
+          </div>
+          <div class="polarity-summary">
+            <div class="polarity-average">
+              <span class="metric-label">RATA-RATA POLARITAS</span>
+              <strong id="polarity-average">—</strong>
+              <span>Rentang −1 (negatif) sampai +1 (positif)</span>
+            </div>
+            <div id="polarity-bars" class="polarity-bars" aria-label="Distribusi skor polaritas"></div>
+          </div>
+          <p class="polarity-note">Skor leksikon dinormalisasi per komentar; komentar tanpa kata sentimen bernilai 0. Ini bukan probabilitas atau ukuran populasi.</p>
         </section>
 
         <section class="panel topics-panel" id="topics">
@@ -120,7 +148,7 @@
         </section>
 
         <section class="analyzer-section" id="analyzer">
-          <div class="analyzer-copy"><div class="section-kicker">COBA SENDIRI</div><h2>Bagaimana sebuah komentar dibaca?</h2><p>Masukkan teks berbahasa Indonesia atau Inggris untuk melihat label awal sentimen dan topiknya.</p></div>
+          <div class="analyzer-copy"><div class="section-kicker">COBA SENDIRI</div><h2>Bagaimana sebuah komentar dibaca?</h2><p>Masukkan teks berbahasa Indonesia atau Inggris untuk melihat polaritas, label awal leksikon, dan probabilitas prediksi model.</p></div>
           <form id="analyzer-form" class="analyzer-form">
             <label class="sr-only" for="analyzer-text">Teks untuk dianalisis</label>
             <textarea id="analyzer-text" maxlength="4000" placeholder="Contoh: AI membantu pekerjaan, tapi privasi data harus dijaga…" required></textarea>
@@ -129,7 +157,7 @@
           </form>
         </section>
 
-        <footer class="footer"><span>RUANGAI <i>·</i> PROYEK DATA MINING</span><span>Label berbasis leksikon · perlu validasi manual untuk penelitian</span></footer>
+        <footer class="footer"><span>RUANGAI <i>·</i> PROYEK DATA MINING</span><span>Model dilatih dari label leksikon · probabilitas belum tervalidasi manual</span></footer>
       </main>
     </div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
