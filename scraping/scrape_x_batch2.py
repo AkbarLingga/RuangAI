@@ -18,10 +18,8 @@ from tqdm import tqdm
 
 DetectorFactory.seed = 0
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 RAW_BATCH1 = ROOT / "data" / "raw" / "x" / "x_ai_raw.csv"
-if not RAW_BATCH1.exists():
-    RAW_BATCH1 = ROOT / "x_ai_raw.csv"
 
 OUT_BATCH2 = ROOT / "data" / "raw" / "x" / "x_ai_raw_batch2.csv"
 OUT_BATCH2.parent.mkdir(parents=True, exist_ok=True)

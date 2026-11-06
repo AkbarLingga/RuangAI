@@ -1,13 +1,13 @@
 import unittest
 
-from sentiment import (
+from analysis.sentiment import (
     analyze_sentiment,
     clean_text,
     identify_topics,
     is_noise,
     normalized_polarity,
 )
-from preprocess import build_dataset
+from analysis.preprocess import build_dataset
 
 
 class SentimentPipelineTests(unittest.TestCase):

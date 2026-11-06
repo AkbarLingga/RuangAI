@@ -18,10 +18,8 @@ import pandas as pd
 import requests
 from tqdm import tqdm
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 RAW_BATCH1 = ROOT / "data" / "raw" / "reddit" / "reddit_ai_raw.csv"
-if not RAW_BATCH1.exists():
-    RAW_BATCH1 = ROOT / "reddit_ai_raw.csv"
 
 OUT_BATCH2 = ROOT / "data" / "raw" / "reddit" / "reddit_ai_raw_batch2.csv"
 OUT_BATCH2.parent.mkdir(parents=True, exist_ok=True)
@@ -211,3 +209,4 @@ def scrape_reddit(target_new_comments: int = 1400) -> int:
 
 if __name__ == "__main__":
     scrape_reddit(target_new_comments=1400)
+

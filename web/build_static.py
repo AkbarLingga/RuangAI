@@ -6,8 +6,10 @@ from pathlib import Path
 
 from flask import render_template
 
-from app import ROOT, _get_sentiment_model, _load_data, app
-from sentiment_model import export_browser_model
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # supaya folder proyek terbaca saat file ini dijalankan langsung
+
+from analysis.sentiment_model import export_browser_model
+from web.app import ROOT, WEB_DIR, _get_sentiment_model, _load_data, app
 
 
 SITE_DIR = ROOT / "_site"
@@ -44,8 +46,8 @@ def build() -> None:
         ),
         encoding="utf-8",
     )
-    (SITE_DIR / "style.css").write_bytes((ROOT / "static" / "style.css").read_bytes())
-    (SITE_DIR / "app.js").write_bytes((ROOT / "static" / "app.js").read_bytes())
+    (SITE_DIR / "style.css").write_bytes((WEB_DIR / "static" / "style.css").read_bytes())
+    (SITE_DIR / "app.js").write_bytes((WEB_DIR / "static" / "app.js").read_bytes())
     (SITE_DIR / ".nojekyll").write_text("", encoding="utf-8")
     print(f"GitHub Pages site built: {SITE_DIR} ({len(data)} records)")
 

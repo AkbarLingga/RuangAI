@@ -5,16 +5,57 @@ dan YouTube. Aplikasi web menggunakan Flask dengan halaman responsif, filter
 interaktif, ringkasan visual, ekspor CSV, serta analisis teks langsung. Hasil
 preprocessing disimpan sebagai CSV agar dapat dipakai ulang.
 
+## Struktur folder
+
+```text
+analysis/        Kode pengolahan: cleaning, sentimen, topik, model, evaluasi
+scraping/        Kode pengambilan data dari X dan Reddit
+web/             Semua file penyokong website
+  app.py           Server Flask
+  build_static.py  Pembuat versi GitHub Pages
+  templates/       Halaman HTML
+  static/          CSS dan JavaScript
+data/
+  raw/           BELUM dibersihkan, dipisah per platform (x, reddit, youtube)
+    archive/     Data YouTube mentah versi lama
+  interim/       Gabungan data mentah, BELUM dibersihkan
+  cleaned/       SUDAH dibersihkan, versi lama per platform (belum diseimbangkan)
+  processed/     SUDAH dibersihkan, diseimbangkan, dan diberi label; dipakai web
+    archive/     Hasil analisis versi lama
+reports/         Laporan komposisi data
+docs/            Proposal
+tests/           Tes otomatis
+```
+
 ## Menjalankan di Windows
 
 ```powershell
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-python preprocess.py
-python app.py
+python web/app.py
 ```
 
 Buka `http://127.0.0.1:5000` di browser.
+
+## Memperbarui data X dan Reddit
+
+Untuk mengambil sampel ulang dari arsip publik X dan Reddit, jalankan:
+
+```powershell
+python scraping/refresh_social_sources.py
+python analysis/preprocess.py
+```
+
+File `data/raw/x/x_ai_refreshed_raw.csv` dan
+`data/raw/reddit/reddit_ai_refreshed_raw.csv` memakai kolom
+yang sama dengan CSV YouTube. Proses refresh mengambil 1.624 posting X dari
+arsip publik yang tersedia (541–542 per bulan, Desember 2022–Februari 2023)
+dan 1.632 komentar Reddit, tersebar 48 komentar per bulan dari Januari
+2024–Oktober 2026. Data X berasal dari arsip riset, bukan pencarian
+langsung/live di X; berkas arsip Parquet 80 MB memerlukan PyArrow, yang
+dipasang bersama requirements. Setelah preprocessing, grafik tren menampilkan
+bulan yang memiliki data; periode arsip X memang berbeda dari periode Reddit
+dan YouTube.
 
 ## Publikasi GitHub Pages
 
@@ -32,15 +73,15 @@ statis website secara otomatis saat perubahan di-push ke branch `main` atau
 GitHub Pages hanya melayani file statis. Workflow membangun halaman, CSS,
 JavaScript, dan data JSON statis; filter dan analisis teks berjalan di browser
 tanpa Flask. Untuk membangun versi statis secara lokal, jalankan
-`python preprocess.py` lalu `python build_static.py`; hasilnya ada di `_site`.
+`python analysis/preprocess.py` lalu `python web/build_static.py`; hasilnya ada di `_site`.
 
 ## Proses data
 
-`preprocess.py` membaca tiga sumber mentah yang tersedia di folder project:
+`analysis/preprocess.py` membaca tiga sumber mentah berikut:
 
-- `x_ai_raw.csv`
-- `reddit_ai_raw.csv`
-- `komentar_youtube_relevan_dampak_ai_pada_masyarakat.csv`
+- `data/raw/x/x_ai_refreshed_raw.csv`
+- `data/raw/reddit/reddit_ai_refreshed_raw.csv`
+- `data/raw/archive/komentar_youtube_relevan_dampak_ai_pada_masyarakat.csv`
 
 Proses merapikan URL, mention, HTML entity, hashtag, markdown, emoji, dan spasi;
 mengeluarkan teks kosong/placeholder, bot yang terdeteksi, promosi eksplisit,
@@ -75,7 +116,7 @@ Untuk mengukur kinerja secara lebih bertanggung jawab, buat sampel anotasi
 berstrata menurut platform dan label baseline:
 
 ```powershell
-python evaluate_sentiment.py sample --size 300 --seed 42
+python analysis/evaluate_sentiment.py sample --size 300 --seed 42
 ```
 
 Beri label secara manual pada kolom `human_sentiment` di
@@ -87,7 +128,7 @@ label akhir di kolom tersebut. File yang sudah ada tidak ditimpa.
 Setelah ketiga kelas memiliki cukup anotasi, jalankan:
 
 ```powershell
-python evaluate_sentiment.py evaluate --test-size 0.2 --seed 42
+python analysis/evaluate_sentiment.py evaluate --test-size 0.2 --seed 42
 ```
 
 Perintah ini membandingkan baseline kamus dengan pipeline TF-IDF dan Logistic

@@ -1,18 +1,22 @@
 from __future__ import annotations
 
+import sys
 from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
 from flask import Flask, jsonify, render_template, request
 
-from preprocess import OUTPUT_FILE
-from sentiment import analyze_sentiment, clean_text, identify_topics, normalized_polarity
-from sentiment_model import export_browser_model, fit_sentiment_model, predict_probabilities
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # supaya folder proyek terbaca saat file ini dijalankan langsung
+
+from analysis.preprocess import OUTPUT_FILE
+from analysis.sentiment import analyze_sentiment, clean_text, identify_topics, normalized_polarity
+from analysis.sentiment_model import export_browser_model, fit_sentiment_model, predict_probabilities
 
 
-ROOT = Path(__file__).resolve().parent
-app = Flask(__name__, template_folder=str(ROOT / "templates"), static_folder=str(ROOT / "static"))
+WEB_DIR = Path(__file__).resolve().parent
+ROOT = WEB_DIR.parent
+app = Flask(__name__, template_folder=str(WEB_DIR / "templates"), static_folder=str(WEB_DIR / "static"))
 
 
 def _load_data() -> pd.DataFrame:

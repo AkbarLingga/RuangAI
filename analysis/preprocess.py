@@ -5,7 +5,9 @@ import sys
 
 import pandas as pd
 
-from sentiment import (
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # supaya folder proyek terbaca saat file ini dijalankan langsung
+
+from analysis.sentiment import (
     analyze_sentiment,
     clean_text,
     identify_topics,
@@ -14,33 +16,33 @@ from sentiment import (
 )
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / "data" / "processed"
 OUTPUT_FILE = OUTPUT_DIR / "social_ai_processed.csv"
 
 SOURCE_CONFIG = (
     {
-        "filename": "x_ai_raw.csv",
+        "filename": "data/raw/x/x_ai_refreshed_raw.csv",
         "platform": "X",
-        "id_column": "tweet_id",
-        "text_column": "raw_text",
-        "date_column": "created_at",
-        "context_column": "query",
-        "author_column": "user",
-        "engagement_columns": ("likes", "retweets"),
+        "id_column": "comment_id",
+        "text_column": "text",
+        "date_column": "comment_published_at",
+        "context_column": "video_title",
+        "author_column": "author",
+        "engagement_columns": ("like_count",),
     },
     {
-        "filename": "reddit_ai_raw.csv",
+        "filename": "data/raw/reddit/reddit_ai_refreshed_raw.csv",
         "platform": "Reddit",
         "id_column": "comment_id",
-        "text_column": "body",
-        "date_column": "date_utc",
-        "context_column": "subreddit",
+        "text_column": "text",
+        "date_column": "comment_published_at",
+        "context_column": "video_title",
         "author_column": "author",
-        "engagement_columns": ("score",),
+        "engagement_columns": ("like_count",),
     },
     {
-        "filename": "komentar_youtube_relevan_dampak_ai_pada_masyarakat.csv",
+        "filename": "data/raw/archive/komentar_youtube_relevan_dampak_ai_pada_masyarakat.csv",
         "platform": "YouTube",
         "id_column": "comment_id",
         "text_column": "text",

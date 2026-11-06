@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import re
 import time
 from datetime import datetime, timezone
@@ -46,8 +47,9 @@ END_DATE   = "2026-10-01"
 TARGET_PER_SUB = 1000
 BATCH_SIZE = 100  # Maksimal per request di Arctic Shift
 
-RAW_CSV = "reddit_ai_raw.csv"
-CLEAN_CSV = "reddit_ai_clean.csv"
+ROOT = Path(__file__).resolve().parents[1]
+RAW_CSV = str(ROOT / "data" / "raw" / "reddit" / "reddit_ai_raw.csv")
+CLEAN_CSV = str(ROOT / "data" / "cleaned" / "reddit_ai_clean.csv")
 
 
 # ==========================================

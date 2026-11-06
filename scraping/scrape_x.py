@@ -12,6 +12,7 @@ Fitur:
 """
 
 import os
+from pathlib import Path
 import re
 import sys
 import time
@@ -29,8 +30,9 @@ DetectorFactory.seed = 0
 # ==========================================
 # FILE OUTPUT
 # ==========================================
-RAW_CSV = "x_ai_raw.csv"
-CLEAN_CSV = "x_ai_clean.csv"
+ROOT = Path(__file__).resolve().parents[1]
+RAW_CSV = str(ROOT / "data" / "raw" / "x" / "x_ai_raw.csv")
+CLEAN_CSV = str(ROOT / "data" / "cleaned" / "x_ai_clean.csv")
 COOKIE_FILE = "x_cookies.json"
 
 # ==========================================

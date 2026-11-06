@@ -5,7 +5,7 @@ Project: Analisis Sentimen dan Identifikasi Topik Kekhawatiran Masyarakat terhad
 from pathlib import Path
 
 # Paths
-ROOT_DIR = Path(__file__).resolve().parent
+ROOT_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT_DIR / "data"
 RAW_DIR = DATA_DIR / "raw"
 INTERIM_DIR = DATA_DIR / "interim"
@@ -60,3 +60,4 @@ ROBERTA_IRONY_MODEL = "cardiffnlp/twitter-roberta-base-irony"
 
 # Lexicon Baseline Labels
 LABELS = ("Positif", "Netral", "Negatif")
+

@@ -9,10 +9,12 @@ import pandas as pd
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 from sklearn.model_selection import train_test_split
 
-from sentiment_model import create_sentiment_pipeline
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # supaya folder proyek terbaca saat file ini dijalankan langsung
+
+from analysis.sentiment_model import create_sentiment_pipeline
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 PROCESSED_FILE = ROOT / "data" / "processed" / "social_ai_processed.csv"
 ANNOTATION_FILE = ROOT / "data" / "annotations" / "sentiment_annotations.csv"
 REPORT_FILE = ROOT / "data" / "evaluation" / "sentiment_evaluation.json"
@@ -125,7 +127,7 @@ def prepare_sample(sample_size: int, random_state: int) -> None:
     if not PROCESSED_FILE.exists():
         raise FileNotFoundError(
             f"Dataset olahan tidak ditemukan: {PROCESSED_FILE}. "
-            "Jalankan `python preprocess.py` terlebih dahulu."
+            "Jalankan `python analysis/merge_social_data.py` terlebih dahulu."
         )
     if ANNOTATION_FILE.exists():
         raise FileExistsError(
@@ -145,7 +147,7 @@ def write_evaluation(test_size: float, random_state: int) -> None:
     if not ANNOTATION_FILE.exists():
         raise FileNotFoundError(
             f"File anotasi tidak ditemukan: {ANNOTATION_FILE}. "
-            "Jalankan `python evaluate_sentiment.py sample` terlebih dahulu."
+            "Jalankan `python analysis/evaluate_sentiment.py sample` terlebih dahulu."
         )
     annotations = pd.read_csv(ANNOTATION_FILE, keep_default_na=False)
     report = evaluate_labeled_data(annotations, test_size, random_state)

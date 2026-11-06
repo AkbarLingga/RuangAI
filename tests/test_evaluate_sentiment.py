@@ -2,7 +2,7 @@ import unittest
 
 import pandas as pd
 
-from evaluate_sentiment import create_annotation_sample, evaluate_labeled_data
+from analysis.evaluate_sentiment import create_annotation_sample, evaluate_labeled_data
 
 
 class SentimentEvaluationTests(unittest.TestCase):
