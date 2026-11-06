@@ -46,6 +46,10 @@ python scraping/refresh_social_sources.py
 python analysis/preprocess.py
 ```
 
+Perhatian: `analysis/preprocess.py` menimpa
+`data/processed/social_ai_processed.csv`. Dataset seimbang 6.000 baris dibuat
+oleh `analysis/merge_social_data.py`.
+
 File `data/raw/x/x_ai_refreshed_raw.csv` dan
 `data/raw/reddit/reddit_ai_refreshed_raw.csv` memakai kolom
 yang sama dengan CSV YouTube. Proses refresh mengambil 1.624 posting X dari
@@ -59,7 +63,8 @@ dan YouTube.
 
 ## Publikasi GitHub Pages
 
-Workflow `.github/workflows/pages.yml` memproses data dan menerbitkan versi
+Workflow `.github/workflows/pages.yml` memakai dataset di `data/processed` dan
+menerbitkan versi
 statis website secara otomatis saat perubahan di-push ke branch `main` atau
 `master`. Untuk mengaktifkannya di repository GitHub:
 
@@ -73,7 +78,7 @@ statis website secara otomatis saat perubahan di-push ke branch `main` atau
 GitHub Pages hanya melayani file statis. Workflow membangun halaman, CSS,
 JavaScript, dan data JSON statis; filter dan analisis teks berjalan di browser
 tanpa Flask. Untuk membangun versi statis secara lokal, jalankan
-`python analysis/preprocess.py` lalu `python web/build_static.py`; hasilnya ada di `_site`.
+`python web/build_static.py`; hasilnya ada di `_site`.
 
 ## Proses data
 
