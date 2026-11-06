@@ -427,6 +427,8 @@ tbody td { padding: 14px 10px; border-bottom: 2px solid #f0f0f0; color: var(--in
 .pagination button:disabled { color: #c4c4c4; }
 
 .analyzer-section { gap: 32px; margin-top: 18px; padding: 26px; border: 2px solid var(--blue-line); border-bottom-width: 4px; border-radius: 18px; background: var(--blue-soft); }
+.analyzer-static { display: block; }
+.analyzer-static .analyzer-copy p { max-width: none; }
 .analyzer-copy .section-kicker { color: #0d6b9a; }
 .analyzer-copy h2 { font-size: 24px; }
 .analyzer-copy p { max-width: 360px; color: #3c5a68; font-size: 15px; line-height: 1.5; }

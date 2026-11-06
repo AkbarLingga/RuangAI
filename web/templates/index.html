@@ -141,8 +141,13 @@
           <div class="table-footer"><span id="page-label">Menampilkan 0 komentar</span><div class="pagination"><button id="prev-page" type="button" aria-label="Halaman sebelumnya">←</button><span id="page-number">1 / 1</span><button id="next-page" type="button" aria-label="Halaman berikutnya">→</button></div></div>
         </section>
 
+        {% if static_site %}
+        <section class="analyzer-section analyzer-static" id="analyzer">
+          <div class="analyzer-copy"><h2>Coba analisis teks</h2><p>Model RoBERTa butuh server Python, jadi fitur ini hanya tersedia di versi lokal. Hasil analisis 6.000 komentar tetap bisa dilihat di dashboard dan diunduh lewat tombol Unduh data.</p></div>
+        </section>
+        {% else %}
         <section class="analyzer-section" id="analyzer">
-          <div class="analyzer-copy"><h2>Coba analisis teks</h2><p>Masukkan teks berbahasa Inggris untuk melihat sentimen, polaritas, dan sarkasme menurut model Transformer. Fitur ini butuh server lokal.</p></div>
+          <div class="analyzer-copy"><h2>Coba analisis teks</h2><p>Masukkan teks berbahasa Inggris untuk melihat sentimen, polaritas, dan sarkasme menurut model Transformer.</p></div>
           <form id="analyzer-form" class="analyzer-form">
             <label class="sr-only" for="analyzer-text">Teks untuk dianalisis</label>
             <textarea id="analyzer-text" maxlength="4000" placeholder="Tulis komentar dalam bahasa Inggris" required></textarea>
@@ -150,6 +155,7 @@
             <div id="analyzer-result" class="analyzer-result" aria-live="polite"></div>
           </form>
         </section>
+        {% endif %}
 
         <footer class="footer"><span>RuangAI · Proyek Data Mining 2026</span><span>Label dari model RoBERTa · Akurasi sentimen 41,9% pada 86 komentar berlabel manual</span></footer>
       </main>

@@ -658,7 +658,7 @@ $("#reset-filters").addEventListener("click", () => {
   refresh();
 });
 $("#download-button").addEventListener("click", exportCsv);
-$("#analyzer-form").addEventListener("submit", analyzeText);
+$("#analyzer-form")?.addEventListener("submit", analyzeText);
 $("#prev-page").addEventListener("click", () => {
   if (state.page > 1) {
     state.page -= 1;

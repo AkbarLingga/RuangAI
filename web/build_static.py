@@ -22,7 +22,7 @@ def build() -> None:
 
     SITE_DIR.mkdir(parents=True, exist_ok=True)
     with app.test_request_context("/"):
-        page = render_template("index.html")
+        page = render_template("index.html", static_site=True)
     page = page.replace('href="/static/style.css"', 'href="./style.css"')
     page = page.replace('src="/static/app.js"', 'src="./app.js"')
     page = page.replace('href="/"', 'href="./"')

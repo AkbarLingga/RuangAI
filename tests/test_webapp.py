@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import patch
 
+from flask import render_template
+
 from web.app import app
 
 
@@ -25,6 +27,13 @@ class WebAppTests(unittest.TestCase):
         self.assertIn(b"Komposisi sentimen", response.data)
         self.assertIn(b"Tren sentimen per platform", response.data)
         self.assertIn(b"sarcasm-filter", response.data)
+
+    def test_analyzer_form_only_on_local_server(self):
+        self.assertIn(b'id="analyzer-form"', self.client.get("/").data)
+        with app.test_request_context("/"):
+            static_page = render_template("index.html", static_site=True)
+        self.assertNotIn('id="analyzer-form"', static_page)
+        self.assertIn("hanya tersedia di versi lokal", static_page)
 
     def test_data_api_returns_platform_rows(self):
         response = self.client.get("/api/data")
