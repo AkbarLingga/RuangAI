@@ -1,7 +1,6 @@
 const state = {
   rows: [],
   filtered: [],
-  sentimentModel: null,
   page: 1,
   pageSize: 8,
 };
@@ -22,21 +21,6 @@ const trendSeries = [
 const svgNamespace = "http://www.w3.org/2000/svg";
 let toastTimer;
 
-const positiveWords = new Set(`amazing awesome beautiful benefit beneficial best better brilliant cool easy effective excellent exciting fair fantastic good great helpful hope improve improved improvement incredible innovative like love lovely nice opportunity positive powerful productive progress recommend safe succeed useful valuable wonderful wow yes bermanfaat bagus baik keren hebat mantap membantu mudah memudahkan positif aman suka senang setuju menarik berguna peluang`.split(/\s+/));
-const negativeWords = new Set(`abuse alarming awful bad biased broke broken harmful harm hate horrible inaccurate issue lie lies lying misleading misinformation mistake dangerous danger wrong fail failed failure fake fear fearful flawed fraud frustrating frustratingly glitch hate harmful harm insecure issue scam scary stolen theft threat threaten terrible terrible unfair unsafe useless worry worried worries risk risks privacy exploit exploitative replace replacing replacement unemployment layoff layoffs steal steals stole stolen leak leaks leaked bahaya berbahaya buruk takut khawatir ancaman mengancam merugikan rugi negatif salah bohong palsu penipuan tipu curi dicuri kebocoran ancam rusak merusak gagal masalah susah sulit jelek buruknya kriminal hoaks kekeringan krisis kecanduan ketergantungan menakutkan seram`.split(/\s+/));
-const negators = new Set(`not no never neither nor hardly isn't wasn't don't doesn't didn't can't cannot won't wouldn't shouldn't without tidak bukan belum jangan nggak enggak gak ga kurang`.split(/\s+/));
-const intensifiers = new Set(`very really extremely so too sangat banget amat benar-benar terlalu`.split(/\s+/));
-const topicRules = [
-  ["Pekerjaan", [/\bjobs?\b/i, /\bwork(?:er|ers|force)?\b/i, /\bemploy(?:ment|ee|ees)?\b/i, /\bcareer\b/i, /\blayoffs?\b/i, /\bunemploy\w*\b/i, /\breplac\w*\b/i, /\bpekerja(?:an)?\b/i, /\bkerja\b/i, /\bpengangguran\b/i, /\bphk\b/i, /\blapangan kerja\b/i, /\bgaji\b/i]],
-  ["Privasi dan keamanan data", [/\bprivacy\b/i, /\bprivasi\b/i, /\bsurveillance\b/i, /\bdata breach\b/i, /\bdata leak\b/i, /\bdata theft\b/i, /\bpersonal data\b/i, /\bkeamanan data\b/i, /\bprivasi data\b/i, /\bpengawasan\b/i, /\bdata pribadi\b/i]],
-  ["Deepfake dan misinformasi", [/\bdeepfakes?\b/i, /\bmisinformation\b/i, /\bdisinformation\b/i, /\bfake news\b/i, /\bhoax\b/i, /\bscams?\b/i, /\bfraud\b/i, /\bpenipuan\b/i, /\bpalsu\b/i, /\bberita bohong\b/i, /\bnipu\b/i]],
-  ["Pendidikan", [/\bschools?\b/i, /\beducation(?:al)?\b/i, /\bstudents?\b/i, /\bteachers?\b/i, /\bplagiar\w*\b/i, /\bcheating\b/i, /\blearning\b/i, /\bpendidikan\b/i, /\bsekolah\b/i, /\bsiswa\b/i, /\bmahasiswa\b/i, /\bguru\b/i, /\bbelajar\b/i, /\bujian\b/i, /\btugas\b/i]],
-  ["Hak cipta dan kreator", [/\bcopyright\b/i, /\bintellectual property\b/i, /\bartists?\b/i, /\billustrators?\b/i, /\bcreators?\b/i, /\bartwork\b/i, /\bai art\b/i, /\bhak cipta\b/i, /\bseniman\b/i, /\bkreator\b/i, /\bpencipta\b/i]],
-  ["Lingkungan dan sumber daya", [/\bdata cent(?:er|re)s?\b/i, /\bdatacent(?:er|re)s?\b/i, /\bwater\b/i, /\benergy\b/i, /\belectricity\b/i, /\bcooling\b/i, /\bclimate\b/i, /\benvironment\w*\b/i, /\bcarbon\b/i, /\bpollution\b/i, /\bair\b/i, /\benergi\b/i, /\blistrik\b/i, /\bpusat data\b/i, /\bair bersih\b/i, /\bair tanah\b/i, /\bkekeringan\b/i, /\blingkungan\b/i, /\bpendingin\b/i]],
-  ["Risiko sosial dan etika", [/\bexistential\b/i, /\bextinction\b/i, /\bethics?\b/i, /\bethical\b/i, /\bthreat\b/i, /\bdanger(?:ous)?\b/i, /\baddiction\b/i, /\bdependency\b/i, /\bketergantungan\b/i, /\bkecanduan\b/i, /\bancaman\b/i, /\bbahaya\b/i, /\bdampak sosial\b/i, /\bmasa depan\b/i, /\bkemanusiaan\b/i]],
-  ["Manfaat dan produktivitas", [/\bbenefit\w*\b/i, /\bhelpful\b/i, /\buseful\b/i, /\bproductiv\w*\b/i, /\befficient\w*\b/i, /\bopportunit\w*\b/i, /\binnovation\b/i, /\bbermanfaat\b/i, /\bmanfaat\b/i, /\bmembantu\b/i, /\bmemudahkan\b/i, /\bproduktivitas\b/i, /\befisien\b/i, /\bpeluang\b/i, /\binovasi\b/i]],
-];
-
 function escapeText(value) {
   return String(value ?? "");
 }
@@ -51,96 +35,6 @@ function showToast(message) {
   toast.classList.add("visible");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove("visible"), 2800);
-}
-
-function analyzeLocally(input) {
-  const text = input
-    .replace(/\[([^\]]+)\]\((?:https?:\/\/)?[^)]+\)/gi, "$1")
-    .replace(/https?:\/\/\S+|www\.\S+/gi, " ")
-    .replace(/(?<!\w)@\w+/g, " ")
-    .replace(/#(\w+)/g, "$1")
-    .replace(/[\u{10000}-\u{10FFFF}\u2600-\u26FF\u2700-\u27BF\u2B00-\u2BFF\u200D\uFE0F]+/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!text) throw new Error("Masukkan teks yang ingin dianalisis.");
-  if (text.length > 4000) throw new Error("Teks maksimal 4.000 karakter.");
-
-  const tokens = text.match(/[a-zA-Z]+(?:'[a-zA-Z]+)?/g)?.map((word) => word.toLowerCase()) || [];
-  let score = 0;
-  let negationWindow = 0;
-  let intensity = 1;
-  for (const token of tokens) {
-    if (negators.has(token)) {
-      negationWindow = 3;
-      continue;
-    }
-    if (intensifiers.has(token)) {
-      intensity = 1.5;
-      continue;
-    }
-    const value = positiveWords.has(token) ? 1 : negativeWords.has(token) ? -1 : 0;
-    if (value) {
-      score += value * intensity * (negationWindow ? -1 : 1);
-      intensity = 1;
-    }
-    if (negationWindow) negationWindow -= 1;
-  }
-  const sentiment = score > 0 ? "Positif" : score < 0 ? "Negatif" : "Netral";
-  const sentimentWordCount = tokens.filter((token) => (
-    positiveWords.has(token) || negativeWords.has(token)
-  )).length;
-  const topics = topicRules
-    .filter(([, patterns]) => patterns.some((pattern) => pattern.test(text)))
-    .map(([label]) => label);
-  return {
-    clean_text: text,
-    sentiment,
-    sentiment_score: score,
-    polarity: sentimentWordCount
-      ? Math.max(-1, Math.min(1, score / sentimentWordCount))
-      : 0,
-    topics: topics.length ? topics : ["Lainnya"],
-  };
-}
-
-function predictWithModel(text) {
-  const model = state.sentimentModel;
-  if (!model) throw new Error("Model sentimen belum tersedia.");
-  const normalized = text.normalize("NFKD").replace(/\p{M}/gu, "").toLocaleLowerCase("en");
-  const tokens = normalized.match(/[\p{L}\p{N}_]{2,}/gu) || [];
-  const terms = [...tokens, ...tokens.slice(1).map((token, index) => `${tokens[index]} ${token}`)];
-  const counts = new Map();
-  for (const term of terms) {
-    if (Object.prototype.hasOwnProperty.call(model.vocabulary, term)) {
-      counts.set(term, (counts.get(term) || 0) + 1);
-    }
-  }
-
-  const features = [];
-  let norm = 0;
-  for (const [term, count] of counts) {
-    const index = model.vocabulary[term];
-    const value = (1 + Math.log(count)) * model.idf[index];
-    features.push([index, value]);
-    norm += value * value;
-  }
-  norm = Math.sqrt(norm);
-  const logits = model.classes.map((_, classIndex) => {
-    let value = model.intercepts[classIndex];
-    if (norm) {
-      for (const [featureIndex, weight] of features) {
-        value += model.coefficients[classIndex][featureIndex] * (weight / norm);
-      }
-    }
-    return value;
-  });
-  const maxLogit = Math.max(...logits);
-  const exponentials = logits.map((value) => Math.exp(value - maxLogit));
-  const total = exponentials.reduce((sum, value) => sum + value, 0);
-  return Object.fromEntries(model.classes.map((label, index) => [
-    label,
-    exponentials[index] / total,
-  ]));
 }
 
 function fillFilters() {
@@ -166,11 +60,13 @@ function getFilteredRows() {
   const platform = $("#platform-filter").value;
   const sentiment = $("#sentiment-filter").value;
   const topic = $("#topic-filter").value;
+  const sarcasm = $("#sarcasm-filter").value;
   const search = $("#search-input").value.trim().toLocaleLowerCase("id");
   return state.rows.filter((row) => (
     (!platform || row.platform === platform)
     && (!sentiment || row.sentiment === sentiment)
     && (!topic || getTopics(row).includes(topic))
+    && (!sarcasm || row.sarcasm === sarcasm)
     && (!search || String(row.clean_text).toLocaleLowerCase("id").includes(search))
   ));
 }
@@ -192,6 +88,7 @@ function renderMetrics(rows) {
   renderSentimentBars(counts, total);
   renderPlatformBars(rows);
   renderTopics(rows);
+  renderSarcasm(rows);
 }
 
 function renderPolarity(rows) {
@@ -204,15 +101,15 @@ function renderPolarity(rows) {
 
   const bins = [
     { label: "≤ −0,5", tone: "negative", count: 0 },
-    { label: "−0,5–0", tone: "negative", count: 0 },
-    { label: "0", tone: "neutral", count: 0 },
-    { label: "0–0,5", tone: "positive", count: 0 },
+    { label: "−0,5–−0,1", tone: "negative", count: 0 },
+    { label: "−0,1–0,1", tone: "neutral", count: 0 },
+    { label: "0,1–0,5", tone: "positive", count: 0 },
     { label: "≥ 0,5", tone: "positive", count: 0 },
   ];
   for (const score of scores) {
     if (score <= -0.5) bins[0].count += 1;
-    else if (score < 0) bins[1].count += 1;
-    else if (score === 0) bins[2].count += 1;
+    else if (score < -0.1) bins[1].count += 1;
+    else if (score <= 0.1) bins[2].count += 1;
     else if (score < 0.5) bins[3].count += 1;
     else bins[4].count += 1;
   }
@@ -241,52 +138,43 @@ function renderPolarity(rows) {
 
 function renderSentimentTrend(rows) {
   const container = $("#sentiment-trend");
-  const platformMonthly = new Map();
+  const platformRows = new Map();
   for (const row of rows) {
     if (!row.platform) continue;
     const date = String(row.date || "").slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
-    const timestamp = Date.parse(`${date}T00:00:00Z`);
-    if (!Number.isFinite(timestamp)) continue;
-
-    const month = date.slice(0, 7);
-    if (!platformMonthly.has(row.platform)) {
-      platformMonthly.set(row.platform, new Map());
-    }
-    const monthly = platformMonthly.get(row.platform);
-    if (!monthly.has(month)) {
-      monthly.set(month, {
-        timestamp: Date.parse(`${month}-01T00:00:00Z`),
-        total: 0,
-        counts: Object.fromEntries(sentimentOrder.map((label) => [label, 0])),
-      });
-    }
-    const point = monthly.get(month);
-    point.total += 1;
-    if (Object.prototype.hasOwnProperty.call(point.counts, row.sentiment)) {
-      point.counts[row.sentiment] += 1;
-    }
+    if (!Number.isFinite(Date.parse(`${date}T00:00:00Z`))) continue;
+    if (!platformRows.has(row.platform)) platformRows.set(row.platform, []);
+    platformRows.get(row.platform).push({ date, sentiment: row.sentiment });
   }
+
+  const buildPoints = (items) => {
+    const unit = new Set(items.map((item) => item.date.slice(0, 7))).size < 2 ? "day" : "month";
+    const buckets = new Map();
+    for (const item of items) {
+      const key = unit === "day" ? item.date : item.date.slice(0, 7);
+      if (!buckets.has(key)) {
+        buckets.set(key, {
+          month: key,
+          timestamp: Date.parse(`${unit === "day" ? key : `${key}-01`}T00:00:00Z`),
+          total: 0,
+          counts: Object.fromEntries(sentimentOrder.map((label) => [label, 0])),
+        });
+      }
+      const point = buckets.get(key);
+      point.total += 1;
+      if (Object.prototype.hasOwnProperty.call(point.counts, item.sentiment)) {
+        point.counts[item.sentiment] += 1;
+      }
+    }
+    return { unit, points: [...buckets.values()].sort((left, right) => left.timestamp - right.timestamp) };
+  };
 
   const platformOrder = ["X", "Reddit", "YouTube"];
-  const platformPoints = platformOrder
-    .filter((platform) => platformMonthly.has(platform))
-    .map((platform) => ({
-      platform,
-      points: [...platformMonthly.get(platform).entries()]
-        .map(([month, point]) => ({ month, ...point }))
-        .sort((left, right) => left.timestamp - right.timestamp),
-    }));
-  for (const [platform, monthly] of platformMonthly) {
-    if (!platformOrder.includes(platform)) {
-      platformPoints.push({
-        platform,
-        points: [...monthly.entries()]
-          .map(([month, point]) => ({ month, ...point }))
-          .sort((left, right) => left.timestamp - right.timestamp),
-      });
-    }
-  }
+  const platformPoints = [
+    ...platformOrder.filter((platform) => platformRows.has(platform)),
+    ...[...platformRows.keys()].filter((platform) => !platformOrder.includes(platform)),
+  ].map((platform) => ({ platform, ...buildPoints(platformRows.get(platform)) }));
   if (!platformPoints.length) {
     container.textContent = "Tidak ada data tanggal untuk filter ini.";
     return;
@@ -294,31 +182,37 @@ function renderSentimentTrend(rows) {
 
   const width = 800;
   const height = 250;
-  const margin = { top: 16, right: 18, bottom: 42, left: 44 };
+  const margin = { top: 16, right: 18, bottom: 46, left: 62 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
-  const allPoints = platformPoints.flatMap(({ points }) => points);
-  const firstTimestamp = Math.min(...allPoints.map((point) => point.timestamp));
-  const lastTimestamp = Math.max(...allPoints.map((point) => point.timestamp));
-  const x = (timestamp) => (
-    margin.left + (lastTimestamp === firstTimestamp
-      ? plotWidth / 2
-      : ((timestamp - firstTimestamp) / (lastTimestamp - firstTimestamp)) * plotWidth)
-  );
   const y = (percentage) => margin.top + (1 - percentage / 100) * plotHeight;
-  const dateFormatter = new Intl.DateTimeFormat("id-ID", {
+  const monthFormatter = new Intl.DateTimeFormat("id-ID", {
     month: "short",
-    year: "2-digit",
+    year: "numeric",
     timeZone: "UTC",
   });
+  const dayFormatter = new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+  const fullDayFormatter = new Intl.DateTimeFormat("id-ID", { dateStyle: "long", timeZone: "UTC" });
   const fragment = document.createDocumentFragment();
-  for (const { platform, points } of platformPoints) {
+  for (const { platform, unit, points } of platformPoints) {
+    const firstTimestamp = points[0].timestamp;
+    const lastTimestamp = points[points.length - 1].timestamp;
+    const x = (timestamp) => (
+      margin.left + (lastTimestamp === firstTimestamp
+        ? plotWidth / 2
+        : ((timestamp - firstTimestamp) / (lastTimestamp - firstTimestamp)) * plotWidth)
+    );
+    const dateFormatter = unit === "day" ? dayFormatter : monthFormatter;
     const card = document.createElement("article");
     card.className = "trend-chart-card";
     const heading = document.createElement("div");
     heading.className = "trend-chart-heading";
     const title = document.createElement("span");
-    title.textContent = platform;
+    title.textContent = `${platform} · ${unit === "day" ? "harian" : "bulanan"}`;
     const total = points.reduce((sum, point) => sum + point.total, 0);
     const count = document.createElement("span");
     count.className = "trend-chart-count";
@@ -328,10 +222,8 @@ function renderSentimentTrend(rows) {
     if (points.length < 2) {
       const notice = document.createElement("p");
       notice.className = "trend-unavailable";
-      const month = points[0]?.month;
-      notice.textContent = month
-        ? `Belum cukup data untuk tren. Data hanya tersedia pada ${dateFormatter.format(new Date(points[0].timestamp))}.`
-        : "Belum cukup data untuk menunjukkan tren bulanan.";
+      const formatter = unit === "day" ? fullDayFormatter : monthFormatter;
+      notice.textContent = `Belum cukup data untuk tren. Data hanya tersedia pada ${formatter.format(new Date(points[0].timestamp))}.`;
       card.append(heading, notice);
       fragment.append(card);
       continue;
@@ -340,7 +232,7 @@ function renderSentimentTrend(rows) {
     const chart = document.createElement("div");
     chart.className = "sentiment-trend";
     chart.setAttribute("role", "img");
-    chart.setAttribute("aria-label", `Tren sentimen bulanan platform ${platform}`);
+    chart.setAttribute("aria-label", `Tren sentimen ${unit === "day" ? "harian" : "bulanan"} platform ${platform}`);
     const svg = document.createElementNS(svgNamespace, "svg");
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
@@ -394,13 +286,13 @@ function renderSentimentTrend(rows) {
       for (let index = 1; index < coordinates.length; index += 1) {
         const previous = coordinates[index - 1];
         const current = coordinates[index];
-        const previousMonth = new Date(points[index - 1].timestamp);
-        const currentMonth = new Date(points[index].timestamp);
-        const monthGap = (
-          (currentMonth.getUTCFullYear() - previousMonth.getUTCFullYear()) * 12
-          + currentMonth.getUTCMonth() - previousMonth.getUTCMonth()
-        );
-        if (monthGap !== 1) continue;
+        const previousDate = new Date(points[index - 1].timestamp);
+        const currentDate = new Date(points[index].timestamp);
+        const gap = unit === "day"
+          ? (currentDate - previousDate) / 86400000
+          : (currentDate.getUTCFullYear() - previousDate.getUTCFullYear()) * 12
+            + currentDate.getUTCMonth() - previousDate.getUTCMonth();
+        if (gap !== 1) continue;
         const line = document.createElementNS(svgNamespace, "line");
         line.setAttribute("x1", String(previous.x));
         line.setAttribute("y1", String(previous.y));
@@ -533,6 +425,34 @@ function renderTopics(rows) {
   if (!sorted.length) $("#topic-bars").textContent = "Tidak ada topik untuk filter ini.";
 }
 
+function renderSarcasm(rows) {
+  const flagged = rows.filter((row) => row.sarcasm === "Ya").length;
+  const share = rows.length ? flagged / rows.length * 100 : 0;
+  $("#sarcasm-total").textContent = numberFormat.format(flagged);
+  $("#sarcasm-share").textContent = `${share.toFixed(1)}% dari ${numberFormat.format(rows.length)} komentar`;
+  const fragment = document.createDocumentFragment();
+  for (const platform of [...new Set(rows.map((row) => row.platform))].sort()) {
+    const platformRows = rows.filter((row) => row.platform === platform);
+    const count = platformRows.filter((row) => row.sarcasm === "Ya").length;
+    const percentage = count / platformRows.length * 100;
+    const item = document.createElement("div");
+    item.className = "sarcasm-row";
+    const name = document.createElement("span");
+    name.textContent = platform;
+    const track = document.createElement("div");
+    track.className = "probability-track";
+    const fill = document.createElement("div");
+    fill.className = "sarcasm-fill";
+    fill.style.width = `${percentage}%`;
+    track.append(fill);
+    const value = document.createElement("span");
+    value.textContent = `${percentage.toFixed(1)}% (${numberFormat.format(count)})`;
+    item.append(name, track, value);
+    fragment.append(item);
+  }
+  $("#sarcasm-bars").replaceChildren(fragment);
+}
+
 function platformIcon(platform) {
   const icon = { X: "𝕏", Reddit: "●", YouTube: "▶" }[platform] || "•";
   const className = { X: "mark-x", Reddit: "mark-reddit", YouTube: "mark-youtube" }[platform] || "";
@@ -581,6 +501,13 @@ function renderComments(rows) {
     pill.className = `sentiment-pill sentiment-${tone}`;
     pill.textContent = row.sentiment;
     sentimentCell.append(pill);
+    if (row.sarcasm === "Ya") {
+      const sarcasmPill = document.createElement("span");
+      sarcasmPill.className = "sarcasm-pill";
+      sarcasmPill.textContent = "Sarkasme";
+      sarcasmPill.title = `Skor sarkasme ${(Number(row.sarcasm_score) * 100).toFixed(0)}%`;
+      sentimentCell.append(sarcasmPill);
+    }
     tr.append(platformCell, textCell, topicCell, sentimentCell);
     fragment.append(tr);
   }
@@ -605,7 +532,8 @@ function refresh() {
 function exportCsv() {
   const columns = [
     "platform", "source_id", "date", "source_context", "engagement",
-    "clean_text", "sentiment", "sentiment_score", "polarity", "topic",
+    "clean_text", "sentiment", "sentiment_score", "polarity",
+    "sarcasm", "sarcasm_score", "topic",
   ];
   const csvEscape = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
   const csv = [
@@ -621,27 +549,45 @@ function exportCsv() {
   URL.revokeObjectURL(url);
 }
 
+async function requestAnalysis(text) {
+  let response;
+  let payload = null;
+  try {
+    response = await fetch("api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    payload = await response.json();
+  } catch {
+    throw new Error("Analisis langsung butuh server lokal. Jalankan python web/app.py.");
+  }
+  if (!response.ok) throw new Error(payload.error || "Teks tidak bisa dianalisis.");
+  return payload;
+}
+
 async function analyzeText(event) {
   event.preventDefault();
   const button = $("#analyze-button");
   const result = $("#analyzer-result");
   const message = $("#analyzer-message");
   button.disabled = true;
-  message.textContent = "Sedang menganalisis…";
+  message.textContent = "Model sedang membaca teks…";
   result.classList.remove("visible");
   try {
-    const payload = analyzeLocally($("#analyzer-text").value);
-    const probabilities = predictWithModel(payload.clean_text);
-    const predictedSentiment = Object.entries(probabilities)
-      .sort((left, right) => right[1] - left[1])[0][0];
+    const payload = await requestAnalysis($("#analyzer-text").value);
     result.replaceChildren();
     const sentiment = document.createElement("div");
     const strong = document.createElement("strong");
-    strong.textContent = `Sentimen leksikon: ${payload.sentiment}`;
-    const score = document.createTextNode(
-      ` · Skor ${payload.sentiment_score} · Polarity ${payload.polarity > 0 ? "+" : ""}${payload.polarity.toFixed(3)}`,
+    strong.textContent = `Sentimen: ${payload.sentiment}`;
+    sentiment.append(
+      strong,
+      document.createTextNode(` · Polaritas ${payload.polarity > 0 ? "+" : ""}${payload.polarity.toFixed(3)}`),
     );
-    sentiment.append(strong, score);
+    const sarcasm = document.createElement("div");
+    const sarcasmLabel = document.createElement("strong");
+    sarcasmLabel.textContent = `Sarkasme: ${payload.sarcasm}`;
+    sarcasm.append(sarcasmLabel, document.createTextNode(` · Skor ${(payload.sarcasm_score * 100).toFixed(1)}%`));
     const topic = document.createElement("div");
     const topicLabel = document.createElement("strong");
     topicLabel.textContent = "Topik: ";
@@ -650,16 +596,10 @@ async function analyzeText(event) {
     cleaned.textContent = `Teks bersih: ${payload.clean_text}`;
     const model = document.createElement("div");
     model.className = "model-result";
-    const modelHeading = document.createElement("div");
-    modelHeading.className = "model-result-heading";
-    const modelLabel = document.createElement("strong");
-    modelLabel.textContent = `Prediksi model: ${predictedSentiment}`;
-    const confidence = document.createElement("span");
-    confidence.textContent = `${(probabilities[predictedSentiment] * 100).toFixed(1)}%`;
-    modelHeading.append(modelLabel, confidence);
     const probabilityRows = document.createElement("div");
     probabilityRows.className = "model-probabilities";
     for (const label of sentimentOrder) {
+      const value = payload.probabilities[label];
       const row = document.createElement("div");
       row.className = "model-probability-row";
       const name = document.createElement("span");
@@ -668,20 +608,20 @@ async function analyzeText(event) {
       track.className = "probability-track";
       const fill = document.createElement("div");
       fill.className = `probability-fill probability-${label.toLocaleLowerCase("id")}`;
-      fill.style.width = `${probabilities[label] * 100}%`;
+      fill.style.width = `${value * 100}%`;
       track.append(fill);
       const percent = document.createElement("span");
-      percent.textContent = `${(probabilities[label] * 100).toFixed(1)}%`;
+      percent.textContent = `${(value * 100).toFixed(1)}%`;
       row.append(name, track, percent);
       probabilityRows.append(row);
     }
     const caveat = document.createElement("p");
     caveat.className = "model-caveat";
-    caveat.textContent = `Probabilitas ML dipelajari dari ${state.sentimentModel.training_labels}; tidak dikalibrasi atau divalidasi manual, jadi bukan ukuran akurasi.`;
-    model.append(modelHeading, probabilityRows, caveat);
-    result.append(sentiment, topic, cleaned, model);
+    caveat.textContent = "Probabilitas keluaran model, bukan ukuran akurasi. Model ini dilatih untuk teks bahasa Inggris.";
+    model.append(probabilityRows, caveat);
+    result.append(sentiment, sarcasm, topic, cleaned, model);
     result.classList.add("visible");
-    message.textContent = "Hasil analisis awal";
+    message.textContent = "Hasil analisis model";
   } catch (error) {
     message.textContent = error.message;
   } finally {
@@ -695,8 +635,6 @@ async function startApp() {
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || "Data tidak bisa dimuat.");
     state.rows = payload.rows;
-    state.sentimentModel = payload.sentiment_model;
-    if (!state.sentimentModel) throw new Error("Model sentimen tidak tersedia.");
     renderPolarity(state.rows);
     fillFilters();
     refresh();
@@ -707,7 +645,7 @@ async function startApp() {
   }
 }
 
-for (const selector of ["#platform-filter", "#sentiment-filter", "#topic-filter"]) {
+for (const selector of ["#platform-filter", "#sentiment-filter", "#topic-filter", "#sarcasm-filter"]) {
   $(selector).addEventListener("change", refresh);
 }
 $("#search-input").addEventListener("input", refresh);
@@ -715,6 +653,7 @@ $("#reset-filters").addEventListener("click", () => {
   $("#platform-filter").value = "";
   $("#sentiment-filter").value = "";
   $("#topic-filter").value = "";
+  $("#sarcasm-filter").value = "";
   $("#search-input").value = "";
   refresh();
 });

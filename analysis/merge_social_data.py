@@ -20,13 +20,8 @@ from tqdm import tqdm
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # supaya folder proyek terbaca saat file ini dijalankan langsung
 
 from analysis import config
-from analysis.sentiment import (
-    analyze_sentiment,
-    clean_text,
-    identify_topics,
-    is_noise,
-    normalized_polarity,
-)
+from analysis.sentiment import clean_text, identify_topics, is_noise
+from analysis.transformer_model import label_frame
 
 DetectorFactory.seed = config.RANDOM_STATE
 
@@ -246,9 +241,6 @@ def run_merge_and_balance():
 
         filter_stats[p]["valid"] += 1
 
-        # Tambahkan label leksikon baseline
-        sentiment, score = analyze_sentiment(c_text)
-        polarity = normalized_polarity(c_text, score)
         topic = identify_topics(c_text)
 
         cleaned_records.append({
@@ -262,9 +254,6 @@ def run_merge_and_balance():
             "engagement": item["engagement"],
             "raw_text": raw_text,
             "clean_text": c_text,
-            "sentiment": sentiment,
-            "sentiment_score": score,
-            "polarity": polarity,
             "topic": topic,
             "source_file": item["source_file"],
         })
@@ -320,6 +309,10 @@ def run_merge_and_balance():
     # Acak urutan secara reproduktif
     df_final = df_final.sample(frac=1.0, random_state=config.RANDOM_STATE).reset_index(drop=True)
 
+    # Klasifikasi sentimen dan sarkasme dengan model Transformer
+    print("\nMengklasifikasikan sentimen dan sarkasme dengan RoBERTa...")
+    df_final = label_frame(df_final)
+
     # 4. Verifikasi Kualitas & Keseimbangan Otomatis
     total_final = len(df_final)
     p_counts = df_final["platform"].value_counts()
@@ -338,7 +331,8 @@ def run_merge_and_balance():
     # Kolom standar analisis
     output_columns = [
         "platform", "source_id", "date", "source_context", "engagement",
-        "raw_text", "clean_text", "sentiment", "sentiment_score", "polarity", "topic"
+        "raw_text", "clean_text", "sentiment", "sentiment_score", "polarity",
+        "sarcasm", "sarcasm_score", "topic"
     ]
     df_output = df_final[output_columns].copy()
     df_output.to_csv(PROCESSED_FILE, index=False, encoding="utf-8-sig")
@@ -409,9 +403,13 @@ def run_merge_and_balance():
 
 ---
 
-## 3. Distribusi Sentimen Baseline (Leksikon)
+## 3. Distribusi Sentimen (RoBERTa)
 
 {df_final.groupby(['platform', 'sentiment']).size().unstack(fill_value=0).to_markdown()}
+
+### Deteksi Sarkasme
+
+{df_final.groupby(['platform', 'sarcasm']).size().unstack(fill_value=0).to_markdown()}
 
 ---
 

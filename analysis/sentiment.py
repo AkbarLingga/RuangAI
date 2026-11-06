@@ -1,19 +1,8 @@
 """
-sentiment.py  (versi berkomentar)
+Cleaning teks, filter noise, dan penandaan topik.
 
-Peta 6 tahap analisis sentimen -> posisi di file ini:
-
-  TAHAP 1  Pengumpulan data ........ TIDAK ADA di file ini
-                                     (folder scraping/ dan analysis/merge_social_data.py)
-  TAHAP 2  Pelabelan data .......... kamus kata + analyze_sentiment() + normalized_polarity()
-                                     (+ identify_topics() sebagai label tambahan)
-  TAHAP 3  Preprocessing ........... clean_text(), is_noise(), tokenisasi, case folding
-  TAHAP 4  Ekstraksi fitur ......... TIDAK ADA di file ini (TF-IDF ada di sentiment_model.py)
-  TAHAP 5  Klasifikasi ............. analyze_sentiment() = pendekatan RULE-BASED (leksikon)
-                                     (model Logistic Regression ada di sentiment_model.py)
-  TAHAP 6  Evaluasi & visualisasi .. TIDAK ADA di file ini (evaluate_sentiment.py, app.py, static/app.js)
-
-Logika kode TIDAK diubah dari versi asli, hanya ditambah komentar.
+Sentimen dan sarkasme TIDAK dihitung di sini. Keduanya diklasifikasikan oleh
+model Transformer di analysis/transformer_model.py.
 """
 from __future__ import annotations
 
@@ -30,64 +19,12 @@ _MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)\]\((?:https?://)?[^)]+\)")  # [Clean
 _MENTION_RE = re.compile(r"(?<!\w)@\w+")                                 # [Cleaning] hapus @mention
 _HASHTAG_RE = re.compile(r"#(\w+)")                                      # [Cleaning] #kata -> kata
 
-# [Tokenization] pola pemecah teks jadi token kata (hanya huruf; angka & tanda baca dibuang di sini)
-_TOKEN_RE = re.compile(r"[a-zA-Z]+(?:'[a-zA-Z]+)?")
-
 # [Filter noise] pola teks promosi/iklan yang dibuang oleh is_noise()
 _PROMO_RE = re.compile(
     r"\b(book now|register now|webinar|summit|conference|discount|promo code|"
     r"buy now|giveaway|airdrop|sponsored|affiliate|dm me for|click here)\b",
     re.IGNORECASE,
 )
-
-
-# =====================================================================
-# TAHAP 2 & 5 - PELABELAN / KLASIFIKASI RULE-BASED: KAMUS (LEKSIKON)
-# Kata-kata ini yang menentukan skor di analyze_sentiment()
-# =====================================================================
-
-# Kamus kata POSITIF (Inggris + Indonesia): tiap kata cocok = +1
-_POSITIVE_WORDS = set(
-    """
-    amazing awesome beautiful benefit beneficial best better brilliant cool easy
-    effective excellent exciting fair fantastic good great helpful hope improve
-    improved improvement incredible innovative like love lovely nice opportunity
-    positive powerful productive progress recommend safe succeed useful valuable
-    wonderful wow yes bermanfaat bagus baik keren hebat mantap membantu mudah
-    memudahkan positif aman suka senang setuju menarik berguna peluang
-    """.split()
-)
-
-# Kamus kata NEGATIF (Inggris + Indonesia): tiap kata cocok = -1
-_NEGATIVE_WORDS = set(
-    """
-    abuse alarming awful bad biased broke broken harmful harm hate horrible
-    inaccurate issue lie lies lying misleading misinformation mistake dangerous
-    danger wrong fail failed failure fake fear fearful flawed fraud frustrating
-    frustratingly glitch hate harmful harm insecure issue scam scary stolen theft
-    threat threaten terrible terrible unfair unsafe useless worry worried
-    worries risk risks privacy exploit exploitative replace replacing replacement
-    unemployment layoff layoffs steal steals stole stolen leak leaks leaked
-    bahaya berbahaya buruk takut khawatir ancaman mengancam merugikan rugi
-    negatif salah bohong palsu penipuan tipu curi dicuri kebocoran ancam
-    rusak merusak gagal masalah susah sulit jelek buruknya kriminal hoaks
-    kekeringan krisis kecanduan ketergantungan menakutkan seram
-    """.split()
-)
-
-# Kata PEMBALIK: membalik tanda skor pada 3 kata berikutnya ("not good" -> negatif)
-_NEGATORS = {
-    "not", "no", "never", "neither", "nor", "hardly", "isn't", "wasn't",
-    "don't", "doesn't", "didn't", "can't", "cannot", "won't", "wouldn't",
-    "shouldn't", "without", "tidak", "bukan", "belum", "jangan", "nggak",
-    "enggak", "gak", "ga", "kurang",
-}
-
-# Kata PENGUAT: mengalikan 1,5 pada kata sentimen berikutnya
-_INTENSIFIERS = {
-    "very", "really", "extremely", "so", "too", "sangat", "banget", "amat",
-    "benar-benar", "terlalu",
-}
 
 
 # =====================================================================
@@ -220,62 +157,6 @@ def is_noise(text: str, author: str = "") -> bool:
         return True
     # [Filter] teks terlalu pendek (< 3 karakter huruf/angka)
     return len(re.sub(r"\W", "", text)) < 3
-
-
-# =====================================================================
-# TAHAP 2 (PELABELAN) + TAHAP 5 (KLASIFIKASI RULE-BASED)
-# Output: kolom `sentiment` (Positif/Netral/Negatif) dan `sentiment_score`
-# =====================================================================
-def analyze_sentiment(text: str) -> tuple[str, float]:
-    """Return a transparent bilingual lexicon score and its polarity label."""
-    # [Case folding + Tokenization] huruf kecil, lalu pecah teks jadi token kata
-    tokens = [token.casefold() for token in _TOKEN_RE.findall(text)]
-    score = 0.0
-    negation_window = 0     # sisa jangkauan kata pembalik (3 kata)
-    intensity = 1.0         # pengali penguat (1.0 normal, 1.5 jika ada kata penguat)
-
-    for token in tokens:
-        # Kata pembalik: aktifkan jendela 3 kata ke depan
-        if token in _NEGATORS:
-            negation_window = 3
-            continue
-        # Kata penguat: kata sentimen berikutnya dikali 1,5
-        if token in _INTENSIFIERS:
-            intensity = 1.5
-            continue
-
-        # Cocokkan dengan kamus: positif +1, negatif -1, lainnya 0
-        value = 1.0 if token in _POSITIVE_WORDS else -1.0 if token in _NEGATIVE_WORDS else 0.0
-        if value:
-            # Akumulasi skor; dibalik tandanya jika masih dalam jendela negasi
-            score += value * intensity * (-1 if negation_window else 1)
-            intensity = 1.0
-        if negation_window:
-            negation_window -= 1
-
-    # [Penentuan label] skor > 0 Positif, < 0 Negatif, = 0 Netral
-    if score > 0:
-        return "Positif", score
-    if score < 0:
-        return "Negatif", score
-    return "Netral", score
-
-
-# =====================================================================
-# TAHAP 2 - PELABELAN: kolom `polarity` (skor dinormalisasi -1 s.d. 1)
-# =====================================================================
-def normalized_polarity(text: str, sentiment_score: float | None = None) -> float:
-    """Return a bounded per-comment polarity normalized by sentiment-bearing words."""
-    tokens = [token.casefold() for token in _TOKEN_RE.findall(text)]   # [Tokenization]
-    # hitung berapa kata yang ada di kamus (positif ATAU negatif)
-    matched_tokens = sum(
-        token in _POSITIVE_WORDS or token in _NEGATIVE_WORDS for token in tokens
-    )
-    if not matched_tokens:
-        return 0.0
-    score = analyze_sentiment(text)[1] if sentiment_score is None else sentiment_score
-    # skor dibagi jumlah kata sentimen, lalu dibatasi ke rentang [-1, 1]
-    return max(-1.0, min(1.0, score / matched_tokens))
 
 
 # =====================================================================

@@ -1,0 +1,112 @@
+{
+  "sentiment": {
+    "rows": 86,
+    "accuracy": 0.4186046511627907,
+    "macro_f1": 0.3996853996853997,
+    "labels": [
+      "Positif",
+      "Netral",
+      "Negatif"
+    ],
+    "confusion_matrix": [
+      [
+        5,
+        10,
+        3
+      ],
+      [
+        9,
+        15,
+        17
+      ],
+      [
+        3,
+        8,
+        16
+      ]
+    ],
+    "per_class": {
+      "Positif": {
+        "precision": 0.29411764705882354,
+        "recall": 0.2777777777777778,
+        "f1-score": 0.2857142857142857,
+        "support": 18.0
+      },
+      "Netral": {
+        "precision": 0.45454545454545453,
+        "recall": 0.36585365853658536,
+        "f1-score": 0.40540540540540543,
+        "support": 41.0
+      },
+      "Negatif": {
+        "precision": 0.4444444444444444,
+        "recall": 0.5925925925925926,
+        "f1-score": 0.5079365079365079,
+        "support": 27.0
+      },
+      "accuracy": 0.4186046511627907,
+      "macro avg": {
+        "precision": 0.3977025153495742,
+        "recall": 0.4120746763023186,
+        "f1-score": 0.3996853996853997,
+        "support": 86.0
+      },
+      "weighted avg": {
+        "precision": 0.4177962939932844,
+        "recall": 0.4186046511627907,
+        "f1-score": 0.4125437730088892,
+        "support": 86.0
+      }
+    }
+  },
+  "sarcasm": {
+    "rows": 86,
+    "accuracy": 0.5930232558139535,
+    "macro_f1": 0.4197031039136302,
+    "labels": [
+      "Ya",
+      "Tidak"
+    ],
+    "confusion_matrix": [
+      [
+        2,
+        32
+      ],
+      [
+        3,
+        49
+      ]
+    ],
+    "per_class": {
+      "Ya": {
+        "precision": 0.4,
+        "recall": 0.058823529411764705,
+        "f1-score": 0.10256410256410256,
+        "support": 34.0
+      },
+      "Tidak": {
+        "precision": 0.6049382716049383,
+        "recall": 0.9423076923076923,
+        "f1-score": 0.7368421052631579,
+        "support": 52.0
+      },
+      "accuracy": 0.5930232558139535,
+      "macro avg": {
+        "precision": 0.5024691358024691,
+        "recall": 0.5005656108597285,
+        "f1-score": 0.4197031039136302,
+        "support": 86.0
+      },
+      "weighted avg": {
+        "precision": 0.5239161642262418,
+        "recall": 0.5930232558139535,
+        "f1-score": 0.4860810344286476,
+        "support": 86.0
+      }
+    }
+  },
+  "sarcasm_flag_precision": {
+    "rows": 18,
+    "precision": 0.5
+  }
+}

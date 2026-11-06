@@ -8,15 +8,10 @@ from flask import render_template
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # supaya folder proyek terbaca saat file ini dijalankan langsung
 
-from analysis.sentiment_model import export_browser_model
-from web.app import ROOT, WEB_DIR, _get_sentiment_model, _load_data, app
+from web.app import DATA_COLUMNS, ROOT, WEB_DIR, _load_data, app
 
 
 SITE_DIR = ROOT / "_site"
-DATA_COLUMNS = [
-    "platform", "source_id", "date", "source_context", "engagement",
-    "clean_text", "sentiment", "sentiment_score", "polarity", "topic",
-]
 
 
 def build() -> None:
@@ -40,7 +35,6 @@ def build() -> None:
                     data[DATA_COLUMNS].to_json(orient="records", force_ascii=False)
                 ),
                 "total": len(data),
-                "sentiment_model": export_browser_model(_get_sentiment_model()),
             },
             ensure_ascii=False,
         ),

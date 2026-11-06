@@ -1,14 +1,15 @@
 # Analisis Sentimen dan Topik Kekhawatiran AI
 
 Aplikasi data mining untuk mengolah komentar publik tentang AI dari X, Reddit,
-dan YouTube. Aplikasi web menggunakan Flask dengan halaman responsif, filter
-interaktif, ringkasan visual, ekspor CSV, serta analisis teks langsung. Hasil
-preprocessing disimpan sebagai CSV agar dapat dipakai ulang.
+dan YouTube. Sentimen dan sarkasme diklasifikasikan oleh model Transformer
+(RoBERTa, turunan BERT), tanpa kamus kata positif dan negatif. Hasilnya
+ditampilkan di dashboard Flask dengan filter, grafik, ekspor CSV, serta analisis
+teks langsung.
 
 ## Struktur folder
 
 ```text
-analysis/        Kode pengolahan: cleaning, sentimen, topik, model, evaluasi
+analysis/        Kode pengolahan: cleaning, topik, model Transformer, evaluasi
 scraping/        Kode pengambilan data dari X dan Reddit
 web/             Semua file penyokong website
   app.py           Server Flask
@@ -31,130 +32,123 @@ tests/           Tes otomatis
 
 ```powershell
 .\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+pip install -r requirements-ml.txt
 python web/app.py
 ```
 
-Buka `http://127.0.0.1:5000` di browser.
-
-## Memperbarui data X dan Reddit
-
-Untuk mengambil sampel ulang dari arsip publik X dan Reddit, jalankan:
-
-```powershell
-python scraping/refresh_social_sources.py
-python analysis/preprocess.py
-```
-
-Perhatian: `analysis/preprocess.py` menimpa
-`data/processed/social_ai_processed.csv`. Dataset seimbang 6.000 baris dibuat
-oleh `analysis/merge_social_data.py`.
-
-File `data/raw/x/x_ai_refreshed_raw.csv` dan
-`data/raw/reddit/reddit_ai_refreshed_raw.csv` memakai kolom
-yang sama dengan CSV YouTube. Proses refresh mengambil 1.624 posting X dari
-arsip publik yang tersedia (541–542 per bulan, Desember 2022–Februari 2023)
-dan 1.632 komentar Reddit, tersebar 48 komentar per bulan dari Januari
-2024–Oktober 2026. Data X berasal dari arsip riset, bukan pencarian
-langsung/live di X; berkas arsip Parquet 80 MB memerlukan PyArrow, yang
-dipasang bersama requirements. Setelah preprocessing, grafik tren menampilkan
-bulan yang memiliki data; periode arsip X memang berbeda dari periode Reddit
-dan YouTube.
-
-## Publikasi GitHub Pages
-
-Workflow `.github/workflows/pages.yml` memakai dataset di `data/processed` dan
-menerbitkan versi
-statis website secara otomatis saat perubahan di-push ke branch `main` atau
-`master`. Untuk mengaktifkannya di repository GitHub:
-
-1. Buka **Settings → Pages**.
-2. Pada **Build and deployment → Source**, pilih **GitHub Actions**.
-3. Pastikan file workflow dan file CSV sumber sudah ikut di-push.
-4. Buka tab **Actions**, tunggu workflow **Deploy GitHub Pages** selesai.
-5. URL website akan tersedia di **Settings → Pages**. Untuk repository ini,
-   alamatnya biasanya `https://akbarlingga.github.io/RuangAI/`.
-
-GitHub Pages hanya melayani file statis. Workflow membangun halaman, CSS,
-JavaScript, dan data JSON statis; filter dan analisis teks berjalan di browser
-tanpa Flask. Untuk membangun versi statis secara lokal, jalankan
-`python web/build_static.py`; hasilnya ada di `_site`.
+Buka `http://127.0.0.1:5000` di browser. Dashboard hanya butuh
+`requirements.txt`. Paket di `requirements-ml.txt` diperlukan untuk fitur analisis
+teks langsung dan untuk memproses ulang data. Saat pertama dipakai, model diunduh
+dari Hugging Face.
 
 ## Proses data
 
-`analysis/preprocess.py` membaca tiga sumber mentah berikut:
+Dataset dibuat oleh satu perintah:
 
-- `data/raw/x/x_ai_refreshed_raw.csv`
-- `data/raw/reddit/reddit_ai_refreshed_raw.csv`
-- `data/raw/archive/komentar_youtube_relevan_dampak_ai_pada_masyarakat.csv`
+```powershell
+python analysis/merge_social_data.py
+```
 
-Proses merapikan URL, mention, HTML entity, hashtag, markdown, emoji, dan spasi;
-mengeluarkan teks kosong/placeholder, bot yang terdeteksi, promosi eksplisit,
-serta ID ganda dalam sumber yang sama. Teks Inggris dan Indonesia dipertahankan.
-File sumber asli tidak diubah. Output ada di
-`data/processed/social_ai_processed.csv`, dengan teks mentah dan bersih, platform,
-konteks sumber, tanggal, engagement, skor sentimen, polaritas ternormalisasi,
-label sentimen, dan topik.
+Urutannya:
 
-Dashboard memvisualisasikan distribusi sentimen, perbandingan platform, topik,
-tren persentase sentimen per bulan yang dipisah menurut platform, serta distribusi
-polaritas seluruh data bersih. Setiap grafik tren menghitung persentase dalam
-platform masing-masing, mengikuti filter aktif, dan tooltip titik menunjukkan
-jumlah komentar untuk membaca persentase sesuai ukuran sampelnya. Bulan tanpa
-data tidak dihubungkan oleh garis; platform dengan data di satu bulan menampilkan
-pesan bahwa datanya belum cukup untuk menunjukkan tren. Tren menggambarkan
-dataset dan tidak dapat langsung dianggap sebagai perubahan opini populasi.
-Polaritas per komentar dihitung
-dari skor leksikon dibagi jumlah kata sentimen, lalu dibatasi pada rentang -1
-sampai +1; ringkasan polaritas tidak mengikuti filter dashboard.
+1. Membaca data mentah di `data/raw/x`, `data/raw/reddit`, dan `data/raw/youtube`.
+2. Membersihkan URL, mention, HTML entity, hashtag, markdown, dan emoji.
+3. Membuang noise, ID ganda, teks ganda, dan teks bukan bahasa Inggris.
+4. Mengambil 2.000 komentar per platform dengan batas dominasi per sumber.
+5. Mengklasifikasikan sentimen dan sarkasme dengan model Transformer.
+6. Menandai topik memakai kata kunci.
+7. Menyimpan `data/processed/social_ai_processed.csv` dan laporan di `reports/`.
 
-Analyzer juga menampilkan probabilitas Logistic Regression TF-IDF. Model saat
-ini dilatih dari label leksikon pada dataset bersih, sehingga probabilitasnya
-belum dikalibrasi atau tervalidasi terhadap anotasi manusia dan bukan ukuran
-akurasi. Gunakan alur anotasi dan evaluasi di bagian berikut sebelum
-menafsirkan hasil sebagai performa model untuk penelitian.
+Proses ini memakan waktu sekitar 20 menit di CPU.
 
-## Validasi dan perbandingan model sentimen
+## Model
 
-Label kamus di dashboard berfungsi sebagai baseline, bukan label kebenaran.
-Untuk mengukur kinerja secara lebih bertanggung jawab, buat sampel anotasi
-berstrata menurut platform dan label baseline:
+| Tugas | Model |
+| --- | --- |
+| Sentimen | `cardiffnlp/twitter-roberta-base-sentiment-latest` |
+| Sarkasme | `cardiffnlp/twitter-roberta-base-irony` dan `jkhan447/sarcasm-detection-RoBerta-base-CR` |
+
+**Sentimen.** Label adalah kelas dengan probabilitas tertinggi. Polaritas adalah
+probabilitas positif dikurangi probabilitas negatif, dengan rentang -1 sampai +1.
+
+**Sarkasme.** Skor sarkasme adalah skor terendah dari kedua model, dan komentar
+ditandai kalau skornya minimal 0,8. Dua model dipakai karena satu model saja
+terlalu sering menandai komentar tulus. Tanda sarkasme tidak mengubah label
+sentimen.
+
+Aturan ini diuji pada dua data berlabel yang seimbang, masing-masing 400 teks:
+
+| Data uji | Presisi | Recall |
+| --- | ---: | ---: |
+| Komentar Reddit (`marcbishara/sarcasm-on-reddit`) | 0,85 | 0,19 |
+| iSarcasm (`viethq1906/isarcasm_2022_taskA_En`) | 0,86 | 0,31 |
+
+Separuh data uji adalah sarkasme, jadi presisi pada data asli bisa lebih rendah.
+Recall yang rendah berarti banyak sarkasme yang tidak terdeteksi.
+
+## Dashboard
+
+Grafik tren dihitung per platform dan mengikuti filter aktif. Platform dengan data
+lebih dari satu bulan ditampilkan per bulan. Data X hanya ada pada 18–24 Februari
+2023, jadi X ditampilkan per hari. Tren menggambarkan dataset, bukan perubahan
+opini masyarakat secara umum. Ringkasan polaritas memakai seluruh data dan tidak
+mengikuti filter.
+
+Fitur analisis teks langsung menjalankan model di server Flask, jadi hanya
+tersedia di server lokal.
+
+## Validasi dengan label manual
+
+Buat file Excel untuk diberi label oleh manusia:
 
 ```powershell
 python analysis/evaluate_sentiment.py sample --size 300 --seed 42
 ```
 
-Beri label secara manual pada kolom `human_sentiment` di
-`data/annotations/sentiment_annotations.csv` dengan nilai `Positif`, `Netral`,
-atau `Negatif`. Gunakan panduan anotasi yang konsisten. Bila ada dua anotator,
-mereka dapat memberi label pada salinan sampel yang terpisah lalu menyepakati
-label akhir di kolom tersebut. File yang sudah ada tidak ditimpa.
-
-Setelah ketiga kelas memiliki cukup anotasi, jalankan:
+Sampel berisi 260 komentar acak dan 40 komentar tambahan bertanda sarkasme. Isi
+`human_sentiment` dan `human_sarcasm` di `data/annotations/label_manual.xlsx`.
+File itu tidak memuat jawaban model, yang disimpan terpisah di
+`data/annotations/sentiment_annotations.csv`. File yang sudah ada tidak ditimpa.
+Lalu jalankan:
 
 ```powershell
-python analysis/evaluate_sentiment.py evaluate --test-size 0.2 --seed 42
+python analysis/evaluate_sentiment.py evaluate
 ```
 
-Perintah ini membandingkan baseline kamus dengan pipeline TF-IDF dan Logistic
-Regression pada pembagian train/test berstrata yang sama. Vectorizer hanya
-dilatih pada data train untuk menghindari kebocoran data. Accuracy, macro-F1,
-confusion matrix, precision, recall, dan F1 per kelas disimpan ke
-`data/evaluation/sentiment_evaluation.json`. Sampel 300 komentar adalah titik
-awal untuk evaluasi kelas; hasilnya tidak otomatis menjadi label dashboard dan
-belum tentu mewakili populasi. Tinjau kecukupan sampel, konsistensi anotator,
-dan bias platform sebelum menarik kesimpulan.
+Accuracy, macro-F1, confusion matrix, precision, recall, dan F1 per kelas dihitung
+dari 260 komentar acak. Komentar tambahan hanya dipakai untuk presisi tanda
+sarkasme. Hasilnya disimpan di `data/evaluation/sentiment_evaluation.json`.
 
-Topik ditandai memakai kamus kata kunci yang transparan (pekerjaan, privasi,
-deepfake/misinformasi, pendidikan, hak cipta/kreator, lingkungan/sumber daya,
-risiko sosial/etika, serta manfaat/produktivitas). Satu komentar dapat memiliki
-lebih dari satu topik.
+### Hasil validasi
+
+Label manual diisi oleh satu orang pada 99 komentar: 86 acak dan 13 tambahan
+bertanda sarkasme.
+
+| Ukuran | Hasil | Dasar |
+| --- | ---: | --- |
+| Akurasi sentimen | 41,9% | 86 komentar acak |
+| Macro-F1 sentimen | 0,40 | 86 komentar acak |
+| Akurasi sarkasme | 59,3% | 86 komentar acak |
+| Recall sarkasme | 5,9% (2 dari 34) | 86 komentar acak |
+| Presisi tanda sarkasme | 50% (9 dari 18) | 99 komentar |
+
+Sampel ini kecil dan labelnya belum diperiksa orang kedua, jadi hasilnya perlu
+dibaca sebagai perkiraan awal. Pemberi label menandai 34 dari 86 komentar acak
+sebagai sarkasme, jauh lebih banyak daripada yang ditandai model.
+
+## Publikasi GitHub Pages
+
+Workflow `.github/workflows/pages.yml` menerbitkan versi statis website saat ada
+push ke `main` atau `master`, memakai dataset yang sudah ada di `data/processed`.
+Alamatnya `https://akbarlingga.github.io/RuangAI/`. Untuk membangunnya secara
+lokal, jalankan `python web/build_static.py`; hasilnya ada di `_site`.
 
 ## Batasan analisis
 
-Label sentimen memakai leksikon bilingual dengan aturan negasi sederhana. Ini
-bukan model sentimen yang dilatih atau divalidasi; slang, sarkasme, konteks,
-campur bahasa, dan istilah yang tidak ada di kamus bisa salah diklasifikasikan.
-Label topik juga berbasis kata kunci dan bukan hasil topic modeling statistik.
-Sebelum digunakan sebagai hasil penelitian, tinjau sampel secara manual,
-perbaiki kamus sesuai korpus, dan laporkan keterbatasan metode.
+- Validasi manual masih kecil, dan akurasi sentimen pada sampel itu hanya 41,9%.
+- Model sentimen dilatih dari tweet, sedangkan sebagian data berasal dari Reddit dan
+  YouTube. Model juga ditujukan untuk teks bahasa Inggris.
+- Topik masih berbasis kata kunci, bukan topic modeling.
+- Data X hanya mencakup satu minggu dan sebagian besar dipilih memakai kata kunci
+  kekhawatiran, jadi perbandingan antarplatform perlu dibaca hati-hati.
+- Sebagian besar data Reddit berasal dari Januari dan Juni 2024.

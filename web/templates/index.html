@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f5f7fb">
+    <meta name="theme-color" content="#58cc02">
     <meta name="description" content="Dashboard analisis sentimen dan topik diskusi publik tentang AI dari X, Reddit, dan YouTube.">
     <title>RuangAI — Analisis Sentimen</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="{{ url_for('static', filename='app.js') }}" defer></script>
   </head>
@@ -19,42 +19,22 @@
           <span class="brand-mark">r<span>•</span></span>
           <span>ruang<span class="brand-ai">ai</span></span>
         </a>
-        <div class="side-label">RUANG KERJA</div>
         <nav class="side-nav" aria-label="Navigasi utama">
           <a class="nav-link active" href="#overview"><span class="nav-icon">◫</span> Ringkasan</a>
           <a class="nav-link" href="#polarity"><span class="nav-icon">◒</span> Polaritas data</a>
           <a class="nav-link" href="#topics"><span class="nav-icon">◎</span> Eksplorasi topik</a>
           <a class="nav-link" href="#comments"><span class="nav-icon">▤</span> Data komentar</a>
-          <a class="nav-link" href="#analyzer"><span class="nav-icon">✳</span> Coba analisis</a>
+          <a class="nav-link" href="#analyzer"><span class="nav-icon">✎</span> Coba analisis</a>
         </nav>
-        <div class="sidebar-bottom">
-          <div class="sidebar-card">
-            <span class="sidebar-card-icon">✦</span>
-            <p>Data sosial media, disusun jadi cerita yang bisa dibaca.</p>
-            <span class="sidebar-card-caption">PROYEK DATA MINING · 2026</span>
-          </div>
-          <div class="profile">
-            <span class="avatar">AI</span>
-            <span class="profile-copy"><strong>Analisis AI</strong><small>Workspace penelitian</small></span>
-            <span class="profile-dots">···</span>
-          </div>
-        </div>
       </aside>
 
+
       <main class="main-content" id="overview">
-        <header class="topbar">
-          <div class="breadcrumb">Workspace <span>/</span> <strong>Analisis sentimen AI</strong></div>
-          <div class="topbar-right">
-            <span class="live-dot"></span><span class="topbar-status">Dataset siap</span>
-            <span class="topbar-divider"></span><span class="topbar-date">DATA MINING · 2026</span>
-          </div>
-        </header>
 
         <section class="page-heading">
           <div>
-            <div class="eyebrow"><span class="eyebrow-spark">✳</span> SOCIAL LISTENING · ARTIFICIAL INTELLIGENCE</div>
-            <h1>Membaca percakapan<br class="mobile-break"> tentang AI.</h1>
-            <p class="page-subtitle">Apa yang dirasakan orang, dan hal apa yang paling mereka bicarakan?</p>
+            <h1>Analisis Sentimen Komentar tentang AI</h1>
+            <p class="page-subtitle">Data komentar dari X, Reddit, dan YouTube.</p>
           </div>
           <button class="button button-dark" id="download-button" type="button"><span>↓</span> Unduh data</button>
         </section>
@@ -64,17 +44,18 @@
           <label class="select-wrap"><span class="sr-only">Platform</span><select id="platform-filter"><option value="">Semua platform</option></select><span class="select-arrow">⌄</span></label>
           <label class="select-wrap"><span class="sr-only">Sentimen</span><select id="sentiment-filter"><option value="">Semua sentimen</option><option>Positif</option><option>Netral</option><option>Negatif</option></select><span class="select-arrow">⌄</span></label>
           <label class="select-wrap topic-select"><span class="sr-only">Topik</span><select id="topic-filter"><option value="">Semua topik</option></select><span class="select-arrow">⌄</span></label>
-          <label class="search-wrap"><span class="search-icon">⌕</span><input id="search-input" type="search" placeholder="Cari kata dalam komentar…" autocomplete="off"></label>
+          <label class="select-wrap"><span class="sr-only">Sarkasme</span><select id="sarcasm-filter"><option value="">Semua komentar</option><option value="Ya">Sarkasme</option><option value="Tidak">Bukan sarkasme</option></select><span class="select-arrow">⌄</span></label>
+          <label class="search-wrap"><span class="search-icon">⌕</span><input id="search-input" type="search" placeholder="Cari komentar" autocomplete="off"></label>
           <button class="reset-button" id="reset-filters" type="button">Atur ulang</button>
         </section>
 
-        <div class="results-line"><span id="results-label">Memuat data…</span><span class="results-dot">·</span><span>3 sumber percakapan</span><span class="results-platforms"><i class="platform-x">𝕏</i><i class="platform-reddit">●</i><i class="platform-youtube">▶</i></span></div>
+        <div class="results-line"><span id="results-label">Memuat data…</span><span class="results-dot">·</span><span>3 platform</span><span class="results-platforms"><i class="platform-x">𝕏</i><i class="platform-reddit">●</i><i class="platform-youtube">▶</i></span></div>
 
         <section class="metric-grid" aria-label="Ringkasan sentimen">
           <article class="metric-card metric-total">
             <div class="metric-top"><span class="metric-label">TOTAL KOMENTAR</span><span class="metric-icon icon-total">▤</span></div>
             <div class="metric-value" id="metric-total">—</div>
-            <div class="metric-bottom"><span class="metric-note">Data setelah preprocessing</span><span class="metric-mini">ALL</span></div>
+            <div class="metric-bottom"><span class="metric-note">Data setelah preprocessing</span></div>
           </article>
           <article class="metric-card">
             <div class="metric-top"><span class="metric-label">SENTIMEN POSITIF</span><span class="metric-icon icon-positive">↗</span></div>
@@ -95,8 +76,7 @@
 
         <section class="panel trend-panel" id="trend">
           <div class="panel-heading">
-            <div><div class="section-kicker">PERUBAHAN DARI WAKTU KE WAKTU</div><h2>Tren sentimen bulanan per platform</h2><p class="panel-description">Setiap grafik membandingkan persentase sentimen dalam satu platform. Arahkan kursor ke titik untuk melihat jumlah komentar.</p></div>
-            <span class="panel-badge">Per platform</span>
+            <div><h2>Tren sentimen per platform</h2><p class="panel-description">Setiap grafik membandingkan persentase sentimen dalam satu platform. Platform yang datanya hanya ada di satu bulan ditampilkan per hari. Arahkan kursor ke titik untuk melihat jumlah komentar.</p></div>
           </div>
           <div id="sentiment-trend" class="trend-charts" aria-label="Grafik tren sentimen berdasarkan platform"></div>
           <div class="legend trend-legend"><span><i class="legend-dot positive-dot"></i>Positif</span><span><i class="legend-dot neutral-dot"></i>Netral</span><span><i class="legend-dot negative-dot"></i>Negatif</span></div>
@@ -105,12 +85,12 @@
 
         <section class="charts-grid">
           <article class="panel sentiment-panel">
-            <div class="panel-heading"><div><div class="section-kicker">GAMBARAN UMUM</div><h2>Komposisi sentimen</h2></div><span class="panel-badge">Berdasarkan komentar</span></div>
+            <div class="panel-heading"><div><h2>Komposisi sentimen</h2></div></div>
             <div class="sentiment-summary" id="sentiment-bars"></div>
             <div class="legend"><span><i class="legend-dot positive-dot"></i>Positif</span><span><i class="legend-dot neutral-dot"></i>Netral</span><span><i class="legend-dot negative-dot"></i>Negatif</span></div>
           </article>
           <article class="panel platform-panel">
-            <div class="panel-heading"><div><div class="section-kicker">PERBANDINGAN SUMBER</div><h2>Sentimen per platform</h2><p class="panel-description">Proporsi tiap sentimen dalam setiap platform.</p></div><span class="mini-menu">···</span></div>
+            <div class="panel-heading"><div><h2>Sentimen per platform</h2><p class="panel-description">Proporsi tiap sentimen dalam setiap platform.</p></div></div>
             <div id="platform-bars" class="platform-bars"></div>
             <div class="legend platform-legend"><span><i class="legend-dot positive-dot"></i>Positif</span><span><i class="legend-dot neutral-dot"></i>Netral</span><span><i class="legend-dot negative-dot"></i>Negatif</span></div>
             <div class="platform-footnote">Persentase per platform · jumlah komentar di sisi kanan</div>
@@ -119,7 +99,7 @@
 
         <section class="panel polarity-panel" id="polarity">
           <div class="panel-heading">
-            <div><div class="section-kicker">POLARITAS DATA BERSIH</div><h2>Seberapa kuat kecenderungan sentimennya?</h2><p class="panel-description">Distribusi skor polaritas ternormalisasi untuk seluruh komentar setelah preprocessing, tidak berubah saat filter digunakan.</p></div>
+            <div><h2>Distribusi polaritas</h2><p class="panel-description">Distribusi skor polaritas ternormalisasi untuk seluruh komentar setelah preprocessing, tidak berubah saat filter digunakan.</p></div>
             <span class="panel-badge" id="polarity-count">— komentar</span>
           </div>
           <div class="polarity-summary">
@@ -130,34 +110,48 @@
             </div>
             <div id="polarity-bars" class="polarity-bars" aria-label="Distribusi skor polaritas"></div>
           </div>
-          <p class="polarity-note">Skor leksikon dinormalisasi per komentar; komentar tanpa kata sentimen bernilai 0. Ini bukan probabilitas atau ukuran populasi.</p>
+          <p class="polarity-note">Polaritas = probabilitas positif dikurangi probabilitas negatif dari model RoBERTa. Ini bukan ukuran populasi.</p>
+        </section>
+
+        <section class="panel sarcasm-panel" id="sarcasm">
+          <div class="panel-heading">
+            <div><h2>Deteksi sarkasme</h2><p class="panel-description" id="sarcasm-description">Sebuah komentar ditandai kalau dua model RoBERTa sama-sama yakin. Banyak sarkasme halus tetap lolos, dan sebagian tanda bisa keliru.</p></div>
+          </div>
+          <div class="polarity-summary">
+            <div class="polarity-average">
+              <span class="metric-label">TERDETEKSI SARKASME</span>
+              <strong id="sarcasm-total">—</strong>
+              <span id="sarcasm-share">—</span>
+            </div>
+            <div id="sarcasm-bars" class="sarcasm-bars" aria-label="Persentase sarkasme per platform"></div>
+          </div>
         </section>
 
         <section class="panel topics-panel" id="topics">
           <div class="panel-heading">
-            <div><div class="section-kicker">APA YANG JADI PERHATIAN?</div><h2>Topik yang dibicarakan</h2><p class="panel-description">Komentar bisa masuk ke lebih dari satu topik.</p></div>
+            <div><h2>Distribusi topik</h2><p class="panel-description">Komentar bisa masuk ke lebih dari satu topik.</p></div>
             <span class="topic-count" id="topic-count">— topik</span>
           </div>
           <div id="topic-bars" class="topic-bars"></div>
         </section>
 
         <section class="panel comments-panel" id="comments">
-          <div class="panel-heading comments-heading"><div><div class="section-kicker">SUARA PUBLIK</div><h2>Cuplikan komentar</h2></div><span class="panel-badge" id="comment-count">0 komentar</span></div>
+          <div class="panel-heading comments-heading"><div><h2>Data komentar</h2></div><span class="panel-badge" id="comment-count">0 komentar</span></div>
           <div class="table-scroll"><table><thead><tr><th>PLATFORM</th><th>KOMENTAR</th><th>TOPIK</th><th>SENTIMEN</th></tr></thead><tbody id="comments-body"></tbody></table></div>
           <div class="table-footer"><span id="page-label">Menampilkan 0 komentar</span><div class="pagination"><button id="prev-page" type="button" aria-label="Halaman sebelumnya">←</button><span id="page-number">1 / 1</span><button id="next-page" type="button" aria-label="Halaman berikutnya">→</button></div></div>
         </section>
 
         <section class="analyzer-section" id="analyzer">
-          <div class="analyzer-copy"><div class="section-kicker">COBA SENDIRI</div><h2>Bagaimana sebuah komentar dibaca?</h2><p>Masukkan teks berbahasa Indonesia atau Inggris untuk melihat polaritas, label awal leksikon, dan probabilitas prediksi model.</p></div>
+          <div class="analyzer-copy"><h2>Coba analisis teks</h2><p>Masukkan teks berbahasa Inggris untuk melihat sentimen, polaritas, dan sarkasme menurut model Transformer. Fitur ini butuh server lokal.</p></div>
           <form id="analyzer-form" class="analyzer-form">
             <label class="sr-only" for="analyzer-text">Teks untuk dianalisis</label>
-            <textarea id="analyzer-text" maxlength="4000" placeholder="Contoh: AI membantu pekerjaan, tapi privasi data harus dijaga…" required></textarea>
-            <div class="analyzer-actions"><span id="analyzer-message">Maksimal 4.000 karakter</span><button class="button button-dark" id="analyze-button" type="submit">Analisis teks <span>↗</span></button></div>
+            <textarea id="analyzer-text" maxlength="4000" placeholder="Tulis komentar dalam bahasa Inggris" required></textarea>
+            <div class="analyzer-actions"><span id="analyzer-message">Maksimal 4.000 karakter</span><button class="button button-dark" id="analyze-button" type="submit">Analisis</button></div>
             <div id="analyzer-result" class="analyzer-result" aria-live="polite"></div>
           </form>
         </section>
 
-        <footer class="footer"><span>RUANGAI <i>·</i> PROYEK DATA MINING</span><span>Model dilatih dari label leksikon · probabilitas belum tervalidasi manual</span></footer>
+        <footer class="footer"><span>RuangAI · Proyek Data Mining 2026</span><span>Label dari model RoBERTa · Akurasi sentimen 41,9% pada 86 komentar berlabel manual</span></footer>
       </main>
     </div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>

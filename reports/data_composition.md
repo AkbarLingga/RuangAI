@@ -1,6 +1,6 @@
 # Laporan Komposisi dan Keseimbangan Data Multi-Platform
 **Proyek Data Mining**: Analisis Sentimen dan Identifikasi Topik Kekhawatiran Masyarakat terhadap Perkembangan AI di Media Sosial  
-**Tanggal Eksekusi**: 2026-11-06 10:36:35 UTC  
+**Tanggal Eksekusi**: 2026-11-06 13:07:29 UTC  
 **Konfigurasi**: `LANG_MODE = en_only`, `TARGET_PER_PLATFORM = 2000`
 
 ---
@@ -26,13 +26,21 @@
 
 ---
 
-## 3. Distribusi Sentimen Baseline (Leksikon)
+## 3. Distribusi Sentimen (RoBERTa)
 
 | platform   |   Negatif |   Netral |   Positif |
 |:-----------|----------:|---------:|----------:|
-| Reddit     |       199 |     1122 |       679 |
-| X          |       568 |     1018 |       414 |
-| YouTube    |       349 |      696 |       955 |
+| Reddit     |       839 |      872 |       289 |
+| X          |       516 |      969 |       515 |
+| YouTube    |       933 |      678 |       389 |
+
+### Deteksi Sarkasme
+
+| platform   |   Tidak |   Ya |
+|:-----------|--------:|-----:|
+| Reddit     |    1906 |   94 |
+| X          |    1904 |   96 |
+| YouTube    |    1863 |  137 |
 
 ---
 

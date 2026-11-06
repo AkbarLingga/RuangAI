@@ -13,6 +13,7 @@ PROCESSED_DIR = DATA_DIR / "processed"
 ANNOTATION_DIR = DATA_DIR / "annotations"
 EVALUATION_DIR = DATA_DIR / "evaluation"
 REPORTS_DIR = ROOT_DIR / "reports"
+PROCESSED_FILE = PROCESSED_DIR / "social_ai_processed.csv"
 
 # Language Configuration
 LANG_MODE = "en_only"  # "en_only" (default) or "all"
@@ -57,7 +58,10 @@ REDDIT_SUBREDDITS = [
 # Primary Analysis Models (Verified Hugging Face models)
 ROBERTA_SENTIMENT_MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 ROBERTA_IRONY_MODEL = "cardiffnlp/twitter-roberta-base-irony"
+ROBERTA_SARCASM_MODEL = "jkhan447/sarcasm-detection-RoBerta-base-CR"
 
-# Lexicon Baseline Labels
+# Komentar ditandai sarkasme kalau kedua model sama-sama yakin minimal sebesar ini.
+SARCASM_THRESHOLD = 0.8
+
 LABELS = ("Positif", "Netral", "Negatif")
 

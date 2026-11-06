@@ -1,3 +1,13 @@
+"""
+Evaluasi model Transformer terhadap label manual.
+
+1. `sample`   membuat file Excel untuk diberi label oleh manusia. Jawaban model
+              disimpan terpisah supaya pemberi label tidak terpengaruh.
+2. `evaluate` membandingkan prediksi model dengan label manual tersebut.
+
+Model dipakai apa adanya (tidak dilatih ulang pada data ini), jadi seluruh baris
+berlabel bisa dipakai sebagai data uji.
+"""
 from __future__ import annotations
 
 import argparse
@@ -11,24 +21,30 @@ from sklearn.model_selection import train_test_split
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # supaya folder proyek terbaca saat file ini dijalankan langsung
 
-from analysis.sentiment_model import create_sentiment_pipeline
+from analysis.config import DATA_DIR, LABELS, PROCESSED_FILE
 
 
-ROOT = Path(__file__).resolve().parents[1]
-PROCESSED_FILE = ROOT / "data" / "processed" / "social_ai_processed.csv"
-ANNOTATION_FILE = ROOT / "data" / "annotations" / "sentiment_annotations.csv"
-REPORT_FILE = ROOT / "data" / "evaluation" / "sentiment_evaluation.json"
-LABELS = ("Positif", "Netral", "Negatif")
+ANNOTATION_FILE = DATA_DIR / "annotations" / "sentiment_annotations.csv"
+LABEL_FILE = DATA_DIR / "annotations" / "label_manual.xlsx"
+REPORT_FILE = DATA_DIR / "evaluation" / "sentiment_evaluation.json"
+SARCASM_LABELS = ("Ya", "Tidak")
+RANDOM_GROUP = "acak"
+SARCASM_GROUP = "tambahan_sarkasme"
+SARCASM_EXTRA = 40
 SAMPLE_COLUMNS = (
-    "row_id", "platform", "source_id", "clean_text",
-    "lexicon_sentiment", "human_sentiment",
+    "row_id", "sample_group", "platform", "source_id", "clean_text",
+    "model_sentiment", "human_sentiment", "model_sarcasm", "human_sarcasm",
 )
 
 
 def create_annotation_sample(
-    data: pd.DataFrame, sample_size: int = 300, random_state: int = 42
+    data: pd.DataFrame,
+    sample_size: int = 300,
+    random_state: int = 42,
+    sarcasm_extra: int = 0,
 ) -> pd.DataFrame:
-    required = {"platform", "source_id", "clean_text", "sentiment"}
+    """Ambil sampel acak berstrata, ditambah komentar bertanda sarkasme bila diminta."""
+    required = {"platform", "source_id", "clean_text", "sentiment", "sarcasm"}
     missing = sorted(required - set(data.columns))
     if missing:
         raise ValueError(f"Kolom dataset olahan hilang: {', '.join(missing)}")
@@ -42,85 +58,158 @@ def create_annotation_sample(
         + sample_data["sentiment"].astype(str)
     )
     stratum_counts = sample_data["stratum"].value_counts()
-    if (stratum_counts < 2).any() or sample_size < len(stratum_counts):
+    random_size = sample_size - sarcasm_extra
+    if (stratum_counts < 2).any() or random_size < len(stratum_counts):
         raise ValueError("Ukuran sampel tidak cukup untuk mewakili semua kelompok.")
 
     sampled = train_test_split(
         sample_data,
-        train_size=sample_size,
+        train_size=random_size,
         random_state=random_state,
         stratify=sample_data["stratum"],
     )[0]
-    sampled = sampled.rename(columns={"sentiment": "lexicon_sentiment"})
+    sampled = sampled.assign(sample_group=RANDOM_GROUP)
+    if sarcasm_extra:
+        remaining = sample_data[
+            (sample_data["sarcasm"] == "Ya") & ~sample_data["row_id"].isin(sampled["row_id"])
+        ]
+        if len(remaining) < sarcasm_extra:
+            raise ValueError("Komentar bertanda sarkasme tidak cukup untuk sampel tambahan.")
+        extra = remaining.sample(n=sarcasm_extra, random_state=random_state)
+        sampled = pd.concat([sampled, extra.assign(sample_group=SARCASM_GROUP)])
+    sampled = sampled.rename(columns={"sentiment": "model_sentiment", "sarcasm": "model_sarcasm"})
     sampled["human_sentiment"] = ""
+    sampled["human_sarcasm"] = ""
     return sampled.loc[:, SAMPLE_COLUMNS].sort_values("row_id").reset_index(drop=True)
 
 
+LABEL_GUIDE = (
+    "Panduan pemberian label",
+    "Baca komentarnya, lalu isi dua kolom memakai dropdown. Nilai sikap penulis, bukan topiknya.",
+    "",
+    "human_sentiment",
+    "Positif: penulis setuju, senang, memuji, atau berharap baik.",
+    "Negatif: penulis marah, takut, kecewa, mengeluh, atau mengkritik.",
+    "Netral: informasi, pertanyaan, berita, atau sikap penulis tidak jelas.",
+    "Komentar sarkas: nilai arti sebenarnya. Contoh: Great, AI took my job = Negatif.",
+    "",
+    "human_sarcasm",
+    "Ya: yang dimaksud penulis berlawanan dengan yang ditulis, biasanya untuk menyindir.",
+    "Tidak: penulis berkata apa adanya. Kalau ragu, pilih Tidak.",
+    "",
+    "Kalau dikerjakan berdua, tentukan dulu aturan yang sama dan samakan cara menilai pada 10 komentar pertama.",
+)
+
+
 def _classification_metrics(
-    actual: pd.Series, predicted: pd.Series
+    actual: pd.Series, predicted: pd.Series, labels: tuple[str, ...]
 ) -> dict[str, object]:
     return {
+        "rows": len(actual),
         "accuracy": float(accuracy_score(actual, predicted)),
-        "macro_f1": float(f1_score(actual, predicted, labels=LABELS, average="macro")),
-        "confusion_matrix": confusion_matrix(
-            actual, predicted, labels=LABELS
-        ).tolist(),
+        "macro_f1": float(f1_score(actual, predicted, labels=labels, average="macro", zero_division=0)),
+        "labels": list(labels),
+        "confusion_matrix": confusion_matrix(actual, predicted, labels=labels).tolist(),
         "per_class": classification_report(
-            actual,
-            predicted,
-            labels=LABELS,
-            output_dict=True,
-            zero_division=0,
+            actual, predicted, labels=labels, output_dict=True, zero_division=0
         ),
     }
 
 
-def evaluate_labeled_data(
-    annotations: pd.DataFrame, test_size: float = 0.2, random_state: int = 42
-) -> dict[str, object]:
-    required = {"clean_text", "lexicon_sentiment", "human_sentiment"}
+def _labeled(annotations: pd.DataFrame, human: str, labels: tuple[str, ...]) -> pd.DataFrame:
+    values = annotations[human].astype(str).str.strip()
+    rows = annotations[values != ""].copy()
+    rows[human] = values[values != ""]
+    if not set(rows[human]).issubset(labels):
+        raise ValueError(f"Isi {human} harus salah satu dari: {', '.join(labels)}.")
+    return rows
+
+
+def evaluate_labeled_data(annotations: pd.DataFrame) -> dict[str, object]:
+    required = {"model_sentiment", "human_sentiment", "model_sarcasm", "human_sarcasm"}
     missing = sorted(required - set(annotations.columns))
     if missing:
         raise ValueError(f"Kolom anotasi hilang: {', '.join(missing)}")
 
-    labeled = annotations.copy()
-    for column in required:
-        labeled[column] = labeled[column].astype(str).str.strip()
-    labeled = labeled[labeled["human_sentiment"] != ""]
-    if not set(labeled["human_sentiment"]).issubset(LABELS):
-        raise ValueError(f"Label manual harus salah satu dari: {', '.join(LABELS)}.")
-    if labeled["human_sentiment"].nunique() != len(LABELS):
-        raise ValueError("Anotasi harus memiliki contoh untuk ketiga kelas sentimen.")
-    if labeled["human_sentiment"].value_counts().min() < 2:
-        raise ValueError("Setiap kelas membutuhkan sedikitnya dua anotasi.")
-    if not 0 < test_size < 1:
-        raise ValueError("Proporsi data uji harus di antara 0 dan 1.")
+    # Baris tambahan dipilih karena bertanda sarkasme, jadi tidak ikut menghitung
+    # akurasi umum. Baris ini hanya dipakai untuk presisi sarkasme.
+    random_rows = annotations
+    if "sample_group" in annotations.columns:
+        random_rows = annotations[annotations["sample_group"] == RANDOM_GROUP]
 
-    train, test = train_test_split(
-        labeled,
-        test_size=test_size,
-        random_state=random_state,
-        stratify=labeled["human_sentiment"],
-    )
-    model = create_sentiment_pipeline(random_state, class_weight="balanced")
-    model.fit(train["clean_text"], train["human_sentiment"])
-    model_predictions = pd.Series(
-        model.predict(test["clean_text"]), index=test.index
-    )
-    return {
-        "seed": random_state,
-        "test_size": test_size,
-        "labeled_rows": len(labeled),
-        "train_rows": len(train),
-        "test_rows": len(test),
-        "class_distribution": labeled["human_sentiment"].value_counts().to_dict(),
-        "lexicon_baseline": _classification_metrics(
-            test["human_sentiment"], test["lexicon_sentiment"]
-        ),
-        "tfidf_logistic_regression": _classification_metrics(
-            test["human_sentiment"], model_predictions
+    sentiment = _labeled(random_rows, "human_sentiment", LABELS)
+    if sentiment.empty:
+        raise ValueError("Belum ada label manual pada human_sentiment.")
+    report: dict[str, object] = {
+        "sentiment": _classification_metrics(
+            sentiment["human_sentiment"], sentiment["model_sentiment"].astype(str).str.strip(), LABELS
         ),
     }
+    sarcasm = _labeled(random_rows, "human_sarcasm", SARCASM_LABELS)
+    if not sarcasm.empty:
+        report["sarcasm"] = _classification_metrics(
+            sarcasm["human_sarcasm"], sarcasm["model_sarcasm"].astype(str).str.strip(), SARCASM_LABELS
+        )
+    flagged = _labeled(annotations, "human_sarcasm", SARCASM_LABELS)
+    flagged = flagged[flagged["model_sarcasm"].astype(str).str.strip() == "Ya"]
+    if not flagged.empty:
+        report["sarcasm_flag_precision"] = {
+            "rows": len(flagged),
+            "precision": float((flagged["human_sarcasm"] == "Ya").mean()),
+        }
+    return report
+
+
+def write_label_workbook(sample: pd.DataFrame, path: Path, random_state: int) -> None:
+    """Buat file Excel tanpa jawaban model, dengan pilihan label berbentuk dropdown."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.worksheet.datavalidation import DataValidation
+
+    rows = sample.sample(frac=1, random_state=random_state)
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Label"
+    sheet.append(["no", "row_id", "platform", "komentar", "human_sentiment", "human_sarcasm"])
+    for number, row in enumerate(rows.itertuples(), start=1):
+        sheet.append([number, row.row_id, row.platform, None, None, None])
+        cell = sheet.cell(row=number + 1, column=4)
+        cell.value = row.clean_text
+        cell.data_type = "s"  # teks yang diawali "=" tidak boleh dibaca sebagai rumus
+        cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+    last = len(rows) + 1
+    for column, labels in (("E", LABELS), ("F", SARCASM_LABELS)):
+        choices = DataValidation(type="list", formula1='"' + ",".join(labels) + '"', allow_blank=True)
+        choices.error = "Pilih dari daftar."
+        sheet.add_data_validation(choices)
+        choices.add(f"{column}2:{column}{last}")
+    for cell in sheet[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="4B9C00")
+    for column, width in zip("ABCDEF", (6, 9, 11, 90, 18, 16)):
+        sheet.column_dimensions[column].width = width
+    sheet.column_dimensions["B"].hidden = True
+    sheet.freeze_panes = "A2"
+    sheet.auto_filter.ref = f"A1:F{last}"
+
+    guide = workbook.create_sheet("Panduan")
+    for line in LABEL_GUIDE:
+        guide.append([line])
+    guide.column_dimensions["A"].width = 110
+    guide["A1"].font = Font(bold=True)
+    workbook.save(path)
+
+
+def read_annotations() -> pd.DataFrame:
+    """Gabungkan label manual dari Excel dengan jawaban model."""
+    annotations = pd.read_csv(ANNOTATION_FILE, keep_default_na=False)
+    if not LABEL_FILE.exists():
+        return annotations
+    labels = pd.read_excel(LABEL_FILE, sheet_name="Label", keep_default_na=False)
+    labels = labels[["row_id", "human_sentiment", "human_sarcasm"]]
+    model = annotations.drop(columns=["human_sentiment", "human_sarcasm"])
+    return model.merge(labels, on="row_id", how="left", validate="one_to_one").fillna("")
 
 
 def prepare_sample(sample_size: int, random_state: int) -> None:
@@ -129,45 +218,49 @@ def prepare_sample(sample_size: int, random_state: int) -> None:
             f"Dataset olahan tidak ditemukan: {PROCESSED_FILE}. "
             "Jalankan `python analysis/merge_social_data.py` terlebih dahulu."
         )
-    if ANNOTATION_FILE.exists():
+    if ANNOTATION_FILE.exists() or LABEL_FILE.exists():
         raise FileExistsError(
-            f"File anotasi sudah ada: {ANNOTATION_FILE}. "
+            f"File anotasi sudah ada di {ANNOTATION_FILE.parent}. "
             "Pindahkan atau ganti nama file tersebut agar anotasi tidak tertimpa."
         )
 
     data = pd.read_csv(PROCESSED_FILE, keep_default_na=False)
-    sample = create_annotation_sample(data, sample_size, random_state)
+    sample = create_annotation_sample(data, sample_size, random_state, SARCASM_EXTRA)
     ANNOTATION_FILE.parent.mkdir(parents=True, exist_ok=True)
     sample.to_csv(ANNOTATION_FILE, index=False, encoding="utf-8-sig")
-    print(f"Template anotasi dibuat: {ANNOTATION_FILE}")
-    print("Isi kolom human_sentiment dengan Positif, Netral, atau Negatif.")
+    write_label_workbook(sample, LABEL_FILE, random_state)
+    print(f"File untuk diisi: {LABEL_FILE}")
+    print("Isi kolom human_sentiment dan human_sarcasm, lalu simpan.")
 
 
-def write_evaluation(test_size: float, random_state: int) -> None:
+def write_evaluation() -> None:
     if not ANNOTATION_FILE.exists():
         raise FileNotFoundError(
             f"File anotasi tidak ditemukan: {ANNOTATION_FILE}. "
             "Jalankan `python analysis/evaluate_sentiment.py sample` terlebih dahulu."
         )
-    annotations = pd.read_csv(ANNOTATION_FILE, keep_default_na=False)
-    report = evaluate_labeled_data(annotations, test_size, random_state)
+    report = evaluate_labeled_data(read_annotations())
     REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
     REPORT_FILE.write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    for method in ("lexicon_baseline", "tfidf_logistic_regression"):
-        metrics = report[method]
-        print(
-            f"{method}: accuracy={metrics['accuracy']:.3f}, "
-            f"macro-F1={metrics['macro_f1']:.3f}"
-        )
+    for task in ("sentiment", "sarcasm"):
+        if task in report:
+            metrics = report[task]
+            print(
+                f"{task}: {metrics['rows']} baris, accuracy={metrics['accuracy']:.3f}, "
+                f"macro-F1={metrics['macro_f1']:.3f}"
+            )
+    if "sarcasm_flag_precision" in report:
+        flagged = report["sarcasm_flag_precision"]
+        print(f"presisi tanda sarkasme: {flagged['precision']:.3f} dari {flagged['rows']} baris")
     print(f"Laporan evaluasi tersimpan: {REPORT_FILE}")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Siapkan anotasi manual dan evaluasi metode analisis sentimen."
+        description="Siapkan anotasi manual dan evaluasi model Transformer."
     )
     commands = parser.add_subparsers(dest="command", required=True)
     sample_parser = commands.add_parser(
@@ -175,18 +268,14 @@ def main() -> int:
     )
     sample_parser.add_argument("--size", type=int, default=300)
     sample_parser.add_argument("--seed", type=int, default=42)
-    evaluate_parser = commands.add_parser(
-        "evaluate", help="Bandingkan baseline leksikon dan model TF-IDF."
-    )
-    evaluate_parser.add_argument("--test-size", type=float, default=0.2)
-    evaluate_parser.add_argument("--seed", type=int, default=42)
+    commands.add_parser("evaluate", help="Bandingkan prediksi model dengan label manual.")
     args = parser.parse_args()
 
     try:
         if args.command == "sample":
             prepare_sample(args.size, args.seed)
         else:
-            write_evaluation(args.test_size, args.seed)
+            write_evaluation()
     except (OSError, ValueError, pd.errors.ParserError) as error:
         print(f"Gagal menjalankan evaluasi: {error}", file=sys.stderr)
         return 1

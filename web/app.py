@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import sys
-from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
@@ -9,32 +8,27 @@ from flask import Flask, jsonify, render_template, request
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # supaya folder proyek terbaca saat file ini dijalankan langsung
 
-from analysis.preprocess import OUTPUT_FILE
-from analysis.sentiment import analyze_sentiment, clean_text, identify_topics, normalized_polarity
-from analysis.sentiment_model import export_browser_model, fit_sentiment_model, predict_probabilities
+from analysis.config import PROCESSED_FILE
+from analysis.sentiment import clean_text, identify_topics
 
 
 WEB_DIR = Path(__file__).resolve().parent
 ROOT = WEB_DIR.parent
 app = Flask(__name__, template_folder=str(WEB_DIR / "templates"), static_folder=str(WEB_DIR / "static"))
 
+DATA_COLUMNS = [
+    "platform", "source_id", "date", "source_context", "engagement",
+    "clean_text", "sentiment", "sentiment_score", "polarity",
+    "sarcasm", "sarcasm_score", "topic",
+]
+
 
 def _load_data() -> pd.DataFrame:
-    if not OUTPUT_FILE.exists():
+    if not PROCESSED_FILE.exists():
         raise FileNotFoundError(
-            "Dataset olahan belum ditemukan. Jalankan `python preprocess.py` terlebih dahulu."
+            "Dataset olahan belum ditemukan. Jalankan `python analysis/merge_social_data.py` terlebih dahulu."
         )
-    return pd.read_csv(OUTPUT_FILE, keep_default_na=False)
-
-
-@lru_cache(maxsize=1)
-def _get_sentiment_model():
-    data = _load_data()
-    required = {"clean_text", "sentiment"}
-    missing = sorted(required - set(data.columns))
-    if missing:
-        raise ValueError(f"Kolom dataset untuk model hilang: {', '.join(missing)}")
-    return fit_sentiment_model(data["clean_text"].astype(str), data["sentiment"].astype(str))
+    return pd.read_csv(PROCESSED_FILE, keep_default_na=False)
 
 
 @app.get("/")
@@ -53,23 +47,13 @@ def api_data():
         app.logger.exception("Tidak dapat membaca dataset olahan")
         return jsonify({"error": f"Gagal membaca dataset: {error}"}), 500
 
-    columns = [
-        "platform", "source_id", "date", "source_context", "engagement",
-        "clean_text", "sentiment", "sentiment_score", "polarity", "topic",
-    ]
-    missing = [column for column in columns if column not in data.columns]
+    missing = [column for column in DATA_COLUMNS if column not in data.columns]
     if missing:
         app.logger.error("Kolom dataset olahan hilang: %s", ", ".join(missing))
         return jsonify({"error": f"Kolom dataset tidak lengkap: {', '.join(missing)}"}), 500
 
-    try:
-        model = export_browser_model(_get_sentiment_model())
-    except (OSError, ValueError, KeyError) as error:
-        app.logger.exception("Tidak dapat melatih model sentimen")
-        return jsonify({"error": f"Gagal menyiapkan model sentimen: {error}"}), 500
-
-    rows = data[columns].to_dict(orient="records")
-    return jsonify({"rows": rows, "total": len(rows), "sentiment_model": model})
+    rows = data[DATA_COLUMNS].to_dict(orient="records")
+    return jsonify({"rows": rows, "total": len(rows)})
 
 
 @app.post("/api/analyze")
@@ -84,26 +68,18 @@ def api_analyze():
     if not text:
         return jsonify({"error": "Masukkan teks yang ingin dianalisis."}), 400
 
-    sentiment, score = analyze_sentiment(text)
     try:
-        model = _get_sentiment_model()
-    except (OSError, ValueError, KeyError) as error:
-        app.logger.exception("Tidak dapat melatih model sentimen")
-        return jsonify({"error": f"Gagal menyiapkan model sentimen: {error}"}), 500
-    probabilities = predict_probabilities(model, text)
-    predicted_sentiment = max(probabilities, key=probabilities.get)
-    return jsonify(
-        {
-            "clean_text": text,
-            "sentiment": sentiment,
-            "sentiment_score": score,
-            "polarity": normalized_polarity(text, score),
-            "topics": identify_topics(text).split("; "),
-            "model_sentiment": predicted_sentiment,
-            "model_probabilities": probabilities,
-            "model_training_labels": "Label leksikon; belum divalidasi manual",
-        }
-    )
+        from analysis.transformer_model import analyze_text
+
+        result = analyze_text(text)
+    except ImportError:
+        app.logger.exception("Paket model belum terpasang")
+        return jsonify({"error": "Paket model belum terpasang. Jalankan `pip install -r requirements-ml.txt`."}), 503
+    except OSError as error:
+        app.logger.exception("Model Transformer gagal dimuat")
+        return jsonify({"error": f"Model Transformer gagal dimuat: {error}"}), 503
+
+    return jsonify({"clean_text": text, "topics": identify_topics(text).split("; "), **result})
 
 
 if __name__ == "__main__":
